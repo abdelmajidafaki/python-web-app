@@ -2,6 +2,7 @@ from  flask import Flask,render_template,request,flash,session,redirect,url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 
+
 webapp=Flask(__name__)
 bcrypt = Bcrypt(webapp)
 webapp.secret_key = 'test'
@@ -18,6 +19,9 @@ class users(db.Model):
     Pasword = db.Column(db.String(255), nullable=False)
     status=db.Column(db.String(20), default='inprogress')
 
+@webapp.route("/", methods=['GET', 'POST'])
+def indexpage():
+    return redirect(url_for('homepage'))
 
 @webapp.route("/register", methods=['GET', 'POST'])
 def registerpage():
@@ -54,11 +58,10 @@ def loginpage():
                     flash("Login successful!", 'success')
                     session['user'] = user.userid
                     return redirect(url_for('homepage'))
-                else:
-                    if user.status=="inactive":
-                        flash("Your account is inactive. Please contact administration to activate your account.", 'danger')
-                    else:    
-                        flash("the account should be activated", 'danger')
+                elif user.status=="inactive":
+                    flash("Your account is inactive. Please contact administration to activate your account.", 'danger')
+                else:    
+                    flash("the account should be activated", 'danger')
             else:
                 flash("Invalid email or password. Please try again.", 'danger')
         else:
@@ -67,10 +70,10 @@ def loginpage():
         return redirect(url_for('homepage'))
     return render_template("loginpage.html") 
 
-@webapp.route("/update_status/<int:user_id>", methods=['POST'])
-def update_status(user_id):
+@webapp.route("/update_status/<int:userid>", methods=['POST'])
+def update_status(userid):
     if 'user' in session:
-        user = users.query.filter_by(userid=user_id).first()
+        user = users.query.filter_by(userid=userid).first()
         if user:
             action = request.form['action']
             if action == 'activate':
@@ -100,5 +103,7 @@ def logout():
     session.pop('user', None)  
     flash("You have been logged out.", 'info')
     return redirect(url_for('loginpage'))
-if __name__ == '__main__':
-    webapp.run(debug=True)  
+
+
+if __name__ == '__main__':  
+    webapp.run(debug=True)
