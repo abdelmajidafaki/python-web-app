@@ -55,7 +55,7 @@
                                 <td>{{ user.email }}</td>
                                 <td>{{ user.status }}</td>
                                 <td>
-                                    <form method="POST" action="{{ url_for('update_status', user_id=user.userid) }}">
+                                    <form method="POST" action="{{ url_for('update_status', userid=user.userid) }}">
                                         <button type="submit" name="action" value="activate" class="btn btn-success">Activate</button>
                                         <button type="submit" name="action" value="deactivate" class="btn btn-danger">Deactivate</button>
                                     </form>
