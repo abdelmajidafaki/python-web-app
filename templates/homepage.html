@@ -19,6 +19,9 @@
                         <a class="nav-link" href="{{ url_for('homepage') }}">Home <span class="sr-only">(current)</span></a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('tasks') }}">tasks</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
                     </li>
                 </ul>
@@ -34,36 +37,47 @@
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
-        <div class="row justify-content-center">
-            <div class="col-md-8">
+        <div class="d-flex justify-content-center">
+            <div>
                 <h2 class="text-center mb-4">All Users</h2>
+
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            <th>User ID</th>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th class="px-5">User ID</th>
+                            <th class="px-3">Full Name</th>
+                            <th class="px-3">Email</th>
+                            <th class="px-3">Status</th>
+                            <th class="px-3">User Type</th>
+                            <th class="px-3">Change Status</th>
+                            <th class="px-3">Change User Type</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for user in all_users %}
-                            <tr>
-                                <td>{{ user.userid }}</td>
-                                <td>{{ user.fulname }}</td>
-                                <td>{{ user.email }}</td>
-                                <td>{{ user.status }}</td>
-                                <td>
-                                    <form method="POST" action="{{ url_for('update_status', userid=user.userid) }}">
-                                        <button type="submit" name="action" value="activate" class="btn btn-success">Activate</button>
-                                        <button type="submit" name="action" value="deactivate" class="btn btn-danger">Deactivate</button>
-                                    </form>
-                                </td>
-                            </tr>
+                        <tr>
+                            <td class="px-3 text-center">{{ user.userid }}</td>
+                            <td class="px-3 text-center ">{{ user.fulname }}</td>
+                            <td class="px-3 text-center">{{ user.email }}</td>
+                            <td class="px-3 text-center">{{ user.status }}</td>
+                            <td class="px-4 text-center">{{ user.usertype }}</td>
+                            <td class="">
+                                <form class="row px-2" method="POST" action="{{ url_for('update_status', userid=user.userid) }}">
+                                    <button type="submit" name="action" value="activate" class="col btn btn-success">Activate</button>
+                                    <button type="submit" name="action" value="deactivate" class=" col  btn btn-danger">Deactivate</button>
+                                </form>
+                            </td>
+                            <td >
+                                <form class="row px-2" method="POST" action="{{ url_for('update_status', userid=user.userid) }}">
+                                    <button type="submit" name="usertype" value="Admin" class="col btn btn-success  ">Admin</button>
+                                    <button type="submit" name="usertype" value="employee" class="col btn btn-danger">Employee</button>
+                                </form>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                
 
                 
             </div>
