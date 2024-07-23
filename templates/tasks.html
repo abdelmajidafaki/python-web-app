@@ -28,6 +28,10 @@
             background-color: rgb(255, 255, 72);
             color: rgb(0, 0, 0); /* Adjust text color for visibility */
         }
+        .border
+        {
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
@@ -54,7 +58,7 @@
             <div class="row">
                 {% for task, admin_name, employee_names in tasks %}
                     <div class="col-md-4 mb-4">
-                        <div class="card">
+                        <div class="card border">
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col">

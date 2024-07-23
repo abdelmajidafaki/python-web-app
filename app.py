@@ -68,6 +68,11 @@ def registerpage():
         return render_template("registerpage.html")
     return render_template("registerpage.html")
 
+@webapp.route("/logout", methods=['GET'])
+def logout():
+    session.pop('user', None)  
+    flash("You have been logged out.", 'info')
+    return redirect(url_for('loginpage'))
 
 
 @webapp.route("/login", methods=['GET', 'POST'])
@@ -76,6 +81,7 @@ def loginpage():
         email = request.form['email']
         password = request.form['password']
         user = users.query.filter_by(email=email).first()
+        user_id=user.userid
         if user:
             if bcrypt.check_password_hash(user.Pasword, password):    
                 if user.status=="active":
@@ -83,8 +89,9 @@ def loginpage():
                         flash("Login successful!", 'success')
                         session['user'] = user.userid
                         return redirect(url_for('homepage'))
-                    elif user.usertype=="Employee":
-                        return redirect(url_for('Employeepage'))
+                    elif user.usertype=="employee":
+                        session['user'] = user.userid
+                        return redirect(url_for('employee'))
                 elif user.status=="inactive":
                     flash("Your account is inactive. Please contact administration to activate your account.", 'danger')
                 else:    
@@ -94,48 +101,109 @@ def loginpage():
         else:
                 flash("Invalid email or password. Please try again.", 'danger')          
     if 'user' in session:
-        return redirect(url_for('homepage'))
-    return render_template("loginpage.html") 
+        user_id = session['user']
+        user = users.query.get(user_id)
+        if user:
+            if user.usertype == "Admin":
+                return redirect(url_for('homepage'))
+            elif user.usertype == "employee":
+                return redirect(url_for('employee'))
 
-@webapp.route('/update_status/<int:userid>', methods=['POST'])
-def update_status(userid):
-    if 'user' in session: 
-        user = users.query.filter_by(userid=userid).first()
-        if not user:
-            flash("User not found.", 'danger')
+    return render_template("loginpage.html")
+
+#EMPLOYEE SIDE
+@webapp.route("/employee", methods=['GET', 'POST']) 
+def employee():
+    if 'user' in session:
+        user_id = session['user'] 
+        user = users.query.get(user_id)
+        
+        if user:
+            assigned_tasks = db.session.query(Task) \
+                                .join(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
+                                .filter(TaskAssignment.employee_id == user_id) \
+                                .all()
+            
+            today = date.today()
+            
+            tasks = []
+            
+            for task in assigned_tasks:
+                if task.start_date > today:
+                    status = "Upcoming"
+                elif task.start_date <= today and (task.close_date is None or task.close_date >= today):
+                    status = "Open"
+                else:
+                    status = "Closed"
+                
+                admin_name = task.admin.fulname  # Use .fullname instead of .fulname
+                
+                tasks.append((task, admin_name, status))
+            
+            return render_template("employeepage.html", user=user, tasks=tasks)
         else:
-            if 'action' in request.form:
-                action = request.form['action']
-                if action == 'activate':
-                    user.status = 'active'
-                elif action == 'deactivate':
-                    user.status = 'inactive'
-                db.session.commit()
-                flash(f"User status updated successfully ({action})", 'success')
-            elif 'usertype' in request.form:
-                usertype = request.form['usertype']
-                if usertype == 'Admin':
-                    user.usertype = 'Admin'
-                elif usertype == 'employee':
-                    user.usertype = 'employee'
-                db.session.commit()
-                flash(f"User type updated successfully ({usertype})", 'success')
-        return redirect(url_for('homepage'))
+            flash("User not found. Please log in again.", 'danger')
+            return redirect(url_for('loginpage'))
     else:
-        flash("You need to login first.", 'danger')
-        return redirect(url_for('login'))
+        flash("You must be logged in to access this page.", 'danger')
+        return redirect(url_for('loginpage'))
 
+
+
+
+
+
+
+
+
+# ADMIN SIDE 
 @webapp.route("/homepage", methods=['GET', 'POST'])
 def homepage():
     if 'user' in session:
         user_id = session['user']  
         user = users.query.filter_by(userid=user_id).first()  
         if user:
-            fullname = user.fulname 
-            all_users = users.query.all()
-            return render_template("homepage.html", fullname=fullname,all_users=all_users)
+            if user.usertype=="Admin":
+                fullname = user.fulname 
+                all_users = users.query.all()
+                return render_template("homepage.html", fullname=fullname,all_users=all_users)
+            elif user.usertype=="employee" :
+                return redirect(url_for('employee'))
     flash("You are not logged in. Please log in to access this page.", 'danger')
     return redirect(url_for('loginpage'))
+
+@webapp.route('/update_status/<int:userid>', methods=['POST'])
+def update_status(userid):
+    if 'user' in session: 
+        user = users.query.filter_by(userid=userid).first()
+        if user.usertype=="Admin":
+            if not user:
+                flash("User not found.", 'danger')
+            else:
+                if 'action' in request.form:
+                    action = request.form['action']
+                    if action == 'activate':
+                        user.status = 'active'
+                    elif action == 'deactivate':
+                        user.status = 'inactive'
+                    db.session.commit()
+                    flash(f"User status updated successfully ({action})", 'success')
+                elif 'usertype' in request.form:
+                    usertype = request.form['usertype']
+                    if usertype == 'Admin':
+                        user.usertype = 'Admin'
+                    elif usertype == 'employee':
+                        user.usertype = 'employee'
+                    db.session.commit()
+                    flash(f"User type updated successfully ({usertype})", 'success')
+            return redirect(url_for('homepage'))
+        elif user.usertype=="employee" :
+                return redirect(url_for('employee'))
+        else:
+            flash("You need to login first.", 'danger')
+            return redirect(url_for('login'))
+
+
 
 
 @webapp.route("/tasks", methods=['GET', 'POST'])
@@ -145,40 +213,43 @@ def tasks():
         user_id = session['user']  
         user = users.query.filter_by(userid=user_id).first()
         if user:
-            admin_alias = aliased(users)
-            tasksq = db.session.query(Task,admin_alias.fulname.label('admin_name'),users.fulname.label('employe_ename')).\
-                                        join(admin_alias, Task.admin_id == admin_alias.userid).\
-                                        outerjoin(TaskAssignment, Task.task_id == TaskAssignment.task_id).\
-                                        outerjoin(users, TaskAssignment.employee_id == users.userid).all()
+            if user.usertype=="Admin":
+    
+                admin_alias = aliased(users)
+                tasksq = db.session.query(Task,admin_alias.fulname.label('admin_name'),users.fulname.label('employe_ename')).\
+                                            join(admin_alias, Task.admin_id == admin_alias.userid).\
+                                            outerjoin(TaskAssignment, Task.task_id == TaskAssignment.task_id).\
+                                            outerjoin(users, TaskAssignment.employee_id == users.userid).all()
 
-            ctaskid = None
-            ctask = None
-            adminname = None
-            employeenames = []
+                ctaskid = None
+                ctask = None
+                adminname = None
+                employeenames = []
 
-            for task, adminname, employeename in tasksq:
-                if ctaskid is None:
-                    ctaskid = task.task_id
-                    ctask = task
-                    adminname = adminname
+                for task, adminname, employeename in tasksq:
+                    if ctaskid is None:
+                        ctaskid = task.task_id
+                        ctask = task
+                        adminname = adminname
 
-                if task.task_id != ctaskid:
+                    if task.task_id != ctaskid:
+                        tasks.append((ctask, adminname, employeenames))
+                        ctaskid = task.task_id
+                        ctask = task
+                        employeenames = []
+
+                    if employeename:
+                        employeenames.append(employeename)
+
+                if ctask is not None:
                     tasks.append((ctask, adminname, employeenames))
-                    ctaskid = task.task_id
-                    ctask = task
-                    employeenames = []
-
-                if employeename:
-                    employeenames.append(employeename)
-
-            if ctask is not None:
-                tasks.append((ctask, adminname, employeenames))
-            today = date.today()
-
-
-            return render_template("tasks.html", today=today, tasks=tasks)
-    flash("You are not logged in. Please log in to access this page.", 'danger')
-    return redirect(url_for('loginpage'))
+                today = date.today()
+                return render_template("tasks.html", today=today, tasks=tasks)
+            elif user.usertype=="employee" :
+                return redirect(url_for('employee'))
+        else:
+            flash("You are not logged in. Please log in to access this page.", 'danger')
+            return redirect(url_for('loginpage'))    
 
 @webapp.route("/tasks/addnewtask", methods=['GET', 'POST'])
 def addnewtask():
@@ -187,41 +258,45 @@ def addnewtask():
         user = users.query.filter_by(userid=user_id).first()
         employees = users.query.filter_by(usertype='employee').all()  
         if user:
-            if request.method == 'POST':
-                task_name = request.form['task_name']
-                startdate = request.form['start_date']
-                try:
-                    start_date = datetime.strptime(startdate, '%Y-%m-%d').date()
-                except ValueError:
-                    flash('Invalid start date format.', 'danger')
+            if user.usertype=="admin":
+                if request.method == 'POST':
+                    task_name = request.form['task_name']
+                    startdate = request.form['start_date']
+                    try:
+                        start_date = datetime.strptime(startdate, '%Y-%m-%d').date()
+                    except ValueError:
+                        flash('Invalid start date format.', 'danger')
+                        return render_template("addtasks.html", employees=employees)
+                    
+
+                    today = date.today()
+                    if start_date < today:
+                        flash('Start date cannot be in the past.', 'danger')
+                        return render_template("addtasks.html", employees=employees)
+                    
+                    close_date = request.form.get('close_date', None)
+                    if close_date:
+                        close_date = datetime.strptime(close_date, '%Y-%m-%d').date()
+                    else:
+                        close_date = None
+
+
+                    selected_employee_ids = request.form.getlist('employees[]')
+                    new_task = Task(task_name=task_name, start_date=start_date, close_date=close_date, admin_id=user_id)
+                    db.session.add(new_task)
+                    db.session.commit() 
+
+
+                    for employee_id in selected_employee_ids:
+                        assignment = TaskAssignment(task_id=new_task.task_id, employee_id=employee_id)
+                        db.session.add(assignment)
+
+                    db.session.commit()
+                    flash('New task added successfully!', 'success')
                     return render_template("addtasks.html", employees=employees)
-                
-
-                today = date.today()
-                if start_date < today:
-                    flash('Start date cannot be in the past.', 'danger')
-                    return render_template("addtasks.html", employees=employees)
-                
-                close_date = request.form.get('close_date', None)
-                if close_date:
-                    close_date = datetime.strptime(close_date, '%Y-%m-%d').date()
-                else:
-                    close_date = None
-
-
-                selected_employee_ids = request.form.getlist('employees[]')
-                new_task = Task(task_name=task_name, start_date=start_date, close_date=close_date, admin_id=user_id)
-                db.session.add(new_task)
-                db.session.commit() 
-
-
-                for employee_id in selected_employee_ids:
-                    assignment = TaskAssignment(task_id=new_task.task_id, employee_id=employee_id)
-                    db.session.add(assignment)
-
-                db.session.commit()
-                flash('New task added successfully!', 'success')
-            return render_template("addtasks.html", employees=employees)
+            elif user.usertype=="employee" :
+                return redirect(url_for('employee'))        
+            
     flash("You are not logged in. Please log in to access this page.", 'danger')
     return redirect(url_for('loginpage'))
 
@@ -299,11 +374,7 @@ def update_task(task_id):
 
 
 
-@webapp.route("/logout", methods=['GET'])
-def logout():
-    session.pop('user', None)  
-    flash("You have been logged out.", 'info')
-    return redirect(url_for('loginpage'))
+
 
 
 if __name__ == '__main__':  
