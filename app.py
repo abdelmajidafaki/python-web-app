@@ -146,35 +146,37 @@ def tasks():
         user = users.query.filter_by(userid=user_id).first()
         if user:
             admin_alias = aliased(users)
-            tasks_query = db.session.query(Task,admin_alias.fulname.label('admin_name'),users.fulname.label('employee_name')).\
+            tasksq = db.session.query(Task,admin_alias.fulname.label('admin_name'),users.fulname.label('employe_ename')).\
                                         join(admin_alias, Task.admin_id == admin_alias.userid).\
                                         outerjoin(TaskAssignment, Task.task_id == TaskAssignment.task_id).\
                                         outerjoin(users, TaskAssignment.employee_id == users.userid).all()
 
-            current_task_id = None
-            current_task = None
-            admin_name = None
-            employee_names = []
+            ctaskid = None
+            ctask = None
+            adminname = None
+            employeenames = []
 
-            for task, admin_name, employee_name in tasks_query:
-                if current_task_id is None:
-                    current_task_id = task.task_id
-                    current_task = task
-                    admin_name = admin_name
+            for task, adminname, employeename in tasksq:
+                if ctaskid is None:
+                    ctaskid = task.task_id
+                    ctask = task
+                    adminname = adminname
 
-                if task.task_id != current_task_id:
-                    tasks.append((current_task, admin_name, employee_names))
-                    current_task_id = task.task_id
-                    current_task = task
-                    employee_names = []
+                if task.task_id != ctaskid:
+                    tasks.append((ctask, adminname, employeenames))
+                    ctaskid = task.task_id
+                    ctask = task
+                    employeenames = []
 
-                if employee_name:
-                    employee_names.append(employee_name)
+                if employeename:
+                    employeenames.append(employeename)
 
-            if current_task is not None:
-                tasks.append((current_task, admin_name, employee_names))
+            if ctask is not None:
+                tasks.append((ctask, adminname, employeenames))
+            today = date.today()
 
-            return render_template("tasks.html", tasks=tasks)
+
+            return render_template("tasks.html", today=today, tasks=tasks)
     flash("You are not logged in. Please log in to access this page.", 'danger')
     return redirect(url_for('loginpage'))
 
@@ -241,6 +243,58 @@ def delete_task(task_id):
         else:
             flash("You are not logged in. Please log in to access this page.", 'danger')
             return redirect(url_for('loginpage'))
+
+@webapp.route("/tasks/update/<int:task_id>", methods=['GET', 'POST'])
+def update_task(task_id):
+    if 'user' in session:
+        user_id = session['user']
+        user = users.query.filter_by(userid=user_id).first()
+        employees = users.query.filter_by(usertype='employee').all()
+        task = Task.query.get(task_id)
+
+        if user and task:
+            if request.method == 'POST':
+                task_name = request.form['task_name']
+                startdate = request.form['start_date']
+                try:
+                    start_date = datetime.strptime(startdate, '%Y-%m-%d').date()
+                except ValueError:
+                    flash('Invalid start date format.', 'danger')
+                    return render_template("addtasks.html", employees=employees)
+
+                today = date.today()
+                if start_date < today:
+                    flash('Start date cannot be in the past.', 'danger')
+                    return render_template("addtasks.html", employees=employees)
+
+                close_date = request.form.get('close_date', None)
+                if close_date:
+                    close_date = datetime.strptime(close_date, '%Y-%m-%d').date()
+                else:
+                    close_date = None
+
+                selected_employee_ids = request.form.getlist('employees[]')
+
+                
+                task.task_name = task_name
+                task.start_date = start_date
+                task.close_date = close_date
+                TaskAssignment.query.filter_by(task_id=task_id).delete()
+                for employee_id in selected_employee_ids:
+                    assignment = TaskAssignment(task_id=task.task_id, employee_id=employee_id)
+                    db.session.add(assignment)
+
+                db.session.commit()
+                flash('Task updated successfully!', 'success')
+                return redirect(url_for('tasks'))
+
+            return render_template("update_task.html", task=task, employees=employees)
+        
+        flash('Task not found or you do not have permission to update it.', 'danger')
+        return redirect(url_for('tasks'))
+
+    flash("You are not logged in. Please log in to access this page.", 'danger')
+    return redirect(url_for('loginpage'))
 
 
 

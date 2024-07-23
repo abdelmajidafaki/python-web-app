@@ -5,7 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>tasks</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
-
+    <style>
+        .status-label {
+            padding: 0.25rem 0.5rem;
+            border-radius: 7px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+    
+        .open {
+            background-color: #28a745;
+            color: white;
+        }
+    
+        .closed {
+            background-color: #dc3545;
+            color: white;
+        }
+    
+        .upcoming {
+            background-color: rgb(255, 255, 72);
+            color: rgb(0, 0, 0); /* Adjust text color for visibility */
+        }
+    </style>
 </head>
 <body>
         <div class="container">
@@ -33,7 +56,24 @@
                     <div class="col-md-4 mb-4">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title">{{ task.task_name }}</h5>
+                                <div class="row">
+                                    <div class="col">
+                                        <h5 class="card-title">{{ task.task_name }}</h5>
+                                    </div>
+                                    <div class="col">
+                                        <div class="status-label {% if task.start_date > today %}upcoming{% elif not task.close_date or task.close_date > today %}open{% else %}closed{% endif %}">
+                                            {% if task.start_date > today %}
+                                            Upcoming
+                                        {% elif not task.close_date or task.close_date > today %}
+                                            Open
+                                        {% else %}
+                                            Closed
+                                        {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                
                                 <p class="card-text">Start Date: {{ task.start_date }}</p>
                                 {% if task.close_date %}
                                     <p class="card-text">Close Date: {{ task.close_date }}</p>
@@ -47,10 +87,17 @@
                                     </p>
                                 {% endif %}
                                 <div class="row">
-                                    <form action="{{ url_for('delete_task', task_id=task.task_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');" class="col">
-                                        <button type="submit" class="btn btn-danger px-4">Delete Task</button>
-                                    </form>
+                                    <div class="col">
+                                        <form action="{{ url_for('delete_task', task_id=task.task_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');" class="col">
+                                            <button type="submit" class="btn btn-danger ">Delete Task</button>
+                                        </form>
+                                    </div>
                                     
+                                    <div class="col">
+                                        <form action="{{ url_for('update_task', task_id=task.task_id) }}" method="GET">
+                                            <button type="submit" class="btn btn-primary">Update Task</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
