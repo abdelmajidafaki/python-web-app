@@ -5,8 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <script>
+        // Function to reload the page once
+        function refreshOnce() {
+            // Check if a session storage key 'pageRefreshed' exists
+            if (!sessionStorage.getItem('pageRefreshed')) {
+                // Set a session storage key to indicate the page has been refreshed
+                sessionStorage.setItem('pageRefreshed', 'true');
+                // Reload the page
+                window.location.reload();
+            } else {
+                // Clear the session storage key for subsequent visits
+                sessionStorage.removeItem('pageRefreshed');
+            }
+        }
+        </script>
 </head>
-<body>
+<body onload="refreshOnce()">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-6">

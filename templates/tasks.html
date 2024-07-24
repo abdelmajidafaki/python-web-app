@@ -107,7 +107,9 @@
                         </div>
                     </div>
                 {% endfor %}
-                {% with messages = get_flashed_messages(with_categories=true) %}
+                
+            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
             <div class="alert alert-{{ category }} text-center" role="alert">
@@ -117,8 +119,6 @@
             {% endif %}
             
             {% endwith %}
-            </div>
-            
             
             <a class="btn btn btn-primary " href="{{ url_for('addnewtask') }}"> add new task</a>
         </div>
