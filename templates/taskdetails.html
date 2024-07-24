@@ -45,7 +45,7 @@
         <div class="card-body px-5">
             <div class="row">
                 <h1 class="card-title">Task Details</h1>
-                <div class="col-3 mt-2">
+                <div class=" col-sm-2   mt-2">
                     <div class="status-label {% if status == 'Upcoming' %}
                                         status-upcoming{% elif status == 'Open' and task.status == 'In Progress' %}
                                         status-open{% elif status == 'Closed' or task.status == 'COMPLETED' %}
@@ -57,19 +57,22 @@
             <p><strong>Task Name:</strong> {{ task.task_name }}</p>
             <p><strong>Task statut: </strong>{{task.status }}</p>
             <div class="row">
-                <p class="col"><strong>Start Date:</strong> {{ task.start_date }}</p>
+                <p class="col-sm-6"><strong>Start Date:</strong> {{ task.start_date }}</p>
                 <p class="col"><strong>Close Date:</strong> {{ task.close_date }}</p>
             </div>
-            <p><strong>Assigned Admin:</strong> {{ task.admin.fulname }}</p>
+            <p><strong>Assigned by:</strong> {{ task.admin.fulname }}</p>
             <h3 class="card-title">Task Progressions</h3>
             <ul class="list-group">
                 {% for progression in task_progressions %}
                     <li class="list-group-item">
                         <p><strong>Progress Name:</strong> {{ progression.progname }}</p>
-                        <p><strong>Start Date:</strong> {{ progression.start_at }}</p>
-                        <p><strong>End Date:</strong> {{ progression.end_at }}</p>
                         <div class="row">
-                            <p class="col-5 mt-2"><strong>Status:</strong> {{ progression.statut }}</p>
+                        <p class="col-sm-6"><strong>Start At:</strong> {{ progression.start_at }}</p>
+                        <p class="col"><strong>End At:</strong> {{ progression.end_at }}</p>    
+                        </div>
+                        
+                        <div class="row">
+                            <p class="col-sm-6 "><strong>Status:</strong> {{ progression.statut }}</p>
                             {% if progression.statut != 'Completed' %}
                             <form class="col-2" method="POST">
                                 <input type="hidden" name="progression_id" value="{{ progression.prog_id }}">
@@ -84,11 +87,11 @@
             
             {% if status == 'Open' %}
             <div class="row">
-            <form class="col mt-2" method="POST" >
+            <form class="col-sm-2  mt-2" method="POST" >
                 <input type="hidden" name="mark_task_done">
                 <button type="submit" class="btn btn-success">task Completed</button>
             </form>
-            <a href="{{ url_for('addprogression', task_id=task.task_id, employee_id=user.userid) }}" class="flex col-2 mr-3 mt-2 btn btn-primary ">add progression</a>
+            <a href="{{ url_for('addprogression', task_id=task.task_id, employee_id=user.userid) }}" class="col-sm-2     mt-2 btn btn-primary ">add progression</a>
             
             </div>
 
