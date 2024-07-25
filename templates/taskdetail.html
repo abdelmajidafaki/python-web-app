@@ -67,7 +67,15 @@
                     <li class="list-group-item">
                         <p><strong>Progress Name:</strong> {{ progression.progname }}</p>
                         <p><strong>Start Date:</strong> {{ progression.start_at }}</p>
-                        <p><strong>End Date:</strong> {{ progression.end_at }}</p>
+                        <p><strong>Completed at:</strong>
+                            {% if progression.end_at is not none %}
+                                {{ progression.end_at }}
+                            {% else %}
+                                &nbsp;
+                            {% endif %}
+                        </p>
+                        
+                        
                         <div class="row">
                             <p class="col-5 mt-2"><strong>Status:</strong> {{ progression.statut }}</p>
                         </div>

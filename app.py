@@ -5,6 +5,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from datetime import datetime, date
 from sqlalchemy.orm import aliased
 from functools import wraps
+
 webapp = Flask(__name__)
 bcrypt = Bcrypt(webapp)
 webapp.secret_key = 'test'
@@ -162,6 +163,7 @@ def employee_required(func):
 @employee_required
 
 def employee():
+
     user_id = current_user.userid
     user = users.query.get(user_id)
 
@@ -174,25 +176,33 @@ def employee():
         today = date.today()
 
         tasks = []
-
+        
         for task in assigned_tasks:
             if task.start_date > today:
                 status = "Upcoming"
             elif task.start_date <= today and (task.close_date is None or task.close_date >= today) and task.status == 'In Progress':
                 status = "Open"
+                if task.close_date:
+                    dayystoclose = (task.close_date - today).days
+                else:
+                    dayystoclose = None
             elif  task.status == 'COMPLETED':
                 status = "Closed"
+                dayystoclose=None
             else:
+                dayystoclose=None
                 status = "Closed"
 
-            admin_name = task.admin.fulname  
+            admin_name = task.admin.fulname 
+            
 
-            tasks.append((task, admin_name, status))
+            tasks.append((task, admin_name, status,dayystoclose))
 
-        return render_template("employeepage.html", user=user, tasks=tasks)
+        return render_template("employeepage.html", user=user, tasks=tasks )
     else:
         flash("User not found. Please log in again.", 'danger')
         return redirect(url_for('loginpage'))
+
 @webapp.route("/employee/taskdetails/<int:task_id>/<int:employee_id>", methods=['GET', 'POST'])
 @login_required
 @employee_required

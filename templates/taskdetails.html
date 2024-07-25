@@ -58,7 +58,14 @@
             <p><strong>Task statut: </strong>{{task.status }}</p>
             <div class="row">
                 <p class="col-sm-6"><strong>Start Date:</strong> {{ task.start_date }}</p>
-                <p class="col"><strong>Close Date:</strong> {{ task.close_date }}</p>
+                
+                <p class="col"><strong>Close Date:</strong>
+                    {% if task.close_date is not none %}
+                        {{ task.close_date }}
+                    {% else %}
+                        &nbsp;
+                    {% endif %}
+                </p>
             </div>
             <p><strong>Assigned by:</strong> {{ task.admin.fulname }}</p>
             <h3 class="card-title">Task Progressions</h3>
@@ -68,7 +75,13 @@
                         <p><strong>Progress Name:</strong> {{ progression.progname }}</p>
                         <div class="row">
                         <p class="col-sm-6"><strong>Start At:</strong> {{ progression.start_at }}</p>
-                        <p class="col"><strong>End At:</strong> {{ progression.end_at }}</p>    
+                        <p><strong>Completed at:</strong>
+                            {% if progression.end_at is not none %}
+                                {{ progression.end_at }}
+                            {% else %}
+                                &nbsp;
+                            {% endif %}
+                        </p>
                         </div>
                         
                         <div class="row">
