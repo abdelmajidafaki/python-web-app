@@ -4,7 +4,9 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import datetime, date
 from sqlalchemy.orm import aliased
+from collections import defaultdict
 from functools import wraps
+import secrets
 
 webapp = Flask(__name__)
 bcrypt = Bcrypt(webapp)
@@ -26,7 +28,9 @@ class users(db.Model, UserMixin):
     email = db.Column(db.String(255), nullable=False)
     Pasword = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(20), default='inprogress')
+    
     usertype = db.Column(db.String(20), default='not defined')
+    Utoken = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
     def get_id(self):
         return str(self.userid)
 
@@ -36,10 +40,11 @@ class Task(db.Model):
     task_name = db.Column(db.String(100), nullable=False)
     start_date = db.Column(db.Date)
     close_date = db.Column(db.Date)
+    description = db.Column(db.Text, nullable=True)
     admin_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=False)
     status = db.Column(db.String(20), default='In Progress')
     admin = db.relationship("users", foreign_keys=[admin_id], backref=db.backref("admin_tasks", lazy=True))
-
+    token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
 class TaskAssignment(db.Model):
     __tablename__ = 'task_assignments'
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.task_id'), primary_key=True)
@@ -175,47 +180,48 @@ def employee():
 
         today = date.today()
 
-        tasks = []
-        
+        tasks = []  
+
         for task in assigned_tasks:
             if task.start_date > today:
                 status = "Upcoming"
+                daystoclose = None
             elif task.start_date <= today and (task.close_date is None or task.close_date >= today) and task.status == 'In Progress':
                 status = "Open"
                 if task.close_date:
-                    dayystoclose = (task.close_date - today).days
+                    daystoclose = (task.close_date - today).days
                 else:
-                    dayystoclose = None
-            elif  task.status == 'COMPLETED':
+                    daystoclose = None
+            elif task.status == 'COMPLETED':
                 status = "Closed"
-                dayystoclose=None
+                daystoclose = None
             else:
-                dayystoclose=None
                 status = "Closed"
+                daystoclose = None
 
             admin_name = task.admin.fulname 
-            
+            tasks.append((task, admin_name, status,daystoclose))
 
-            tasks.append((task, admin_name, status,dayystoclose))
+            
 
         return render_template("employeepage.html", user=user, tasks=tasks )
     else:
         flash("User not found. Please log in again.", 'danger')
         return redirect(url_for('loginpage'))
 
-@webapp.route("/employee/taskdetails/<int:task_id>/<int:employee_id>", methods=['GET', 'POST'])
+@webapp.route("/employee/taskdetails/<token>/<etoken>", methods=['GET', 'POST'])
 @login_required
 @employee_required
 
-def taskdetails(task_id, employee_id):
+def taskdetails(token, etoken):
     user_id = current_user.userid
     user = users.query.get(user_id)
-    task = Task.query.get(task_id)
+    task = Task.query.filter_by(token=token).first()
+    employee=users.query.filter_by(Utoken=etoken).first()
+    task_assignment = TaskAssignment.query.filter_by(task_id=task.task_id, employee_id=employee.userid).first()
     
-    task_assignment = TaskAssignment.query.filter_by(task_id=task_id, employee_id=employee_id).first()
     
-    
-    task_progressions = Task_Progression.query.filter_by(task_id=task_id, employee_id=employee_id).all()
+    task_progressions = Task_Progression.query.filter_by(task_id=task.task_id, employee_id=employee.userid).all()
     if task:
         if request.method == 'POST':
             if 'mark_task_done' in request.form:
@@ -223,7 +229,7 @@ def taskdetails(task_id, employee_id):
                 task.status = 'COMPLETED'  
                 db.session.commit()
                 flash('Task marked as done.', 'success')
-                return redirect(url_for('taskdetails', task_id=task_id, employee_id=employee_id))
+                return redirect(url_for('taskdetails', task_id=task.task_id, employee_id=employee.userid))
             progression_id = request.form.get('progression_id')
             progression = Task_Progression.query.get(progression_id)
 
@@ -233,13 +239,13 @@ def taskdetails(task_id, employee_id):
 
                 db.session.commit()
                 flash('Progression marked as completed.', 'success')
-                return redirect(url_for('taskdetails', task_id=task_id, employee_id=employee_id))
+                return redirect(url_for('taskdetails', task_id=task.task_id, employee_id=employee.userid))
                 
             if progression:
                 progression.statut = 'Completed'
                 db.session.commit()
                 flash('Progression marked as completed successfully.', 'success')
-                return redirect(url_for('taskdetails', task_id=task_id, employee_id=employee_id))
+                return redirect(url_for('taskdetails', task_id=task.task_id, employee_id=employee.userid))
             else:
                 flash('Progression not found.', 'danger')   
 
@@ -272,17 +278,24 @@ def addprogression(task_id, employee_id):
             
             progname = request.form.get('progname')
             start_at = request.form.get('start_at')
+            if not start_at or start_at == '0000-00-00':
+                start_at = date.today() 
 
-            
+    
+            if isinstance(start_at, str):
+                try:
+                    start_at = date.fromisoformat(start_at) 
+                except ValueError:
+                    start_at = date.today()
             new_progression = Task_Progression(progname=progname,
                                             start_at=start_at,
                                             task_id=task_id,
                                             employee_id =employee_id)
-
+            
             
             db.session.add(new_progression)
             db.session.commit()
-
+            print(f"start_at: {start_at }")
             flash('Task progression added successfully.', 'success')
             return redirect(url_for('employee')) 
         else:
@@ -355,19 +368,30 @@ def update_status(userid):
         return redirect(url_for('loginpage'))
     
 
-@webapp.route("/tasks/taskdetail/<int:task_id>", methods=['GET', 'POST'])
+@webapp.route("/tasks/taskdetail/<token>", methods=['GET', 'POST'])
 @login_required
 @admin_required
-def taskdetail(task_id):
+def taskdetail(token):
     user_id = current_user.userid
     user = users.query.get(user_id)
-    task = Task.query.get(task_id)
+    task = Task.query.filter_by(token=token).first()
     
-    task_assignment = TaskAssignment.query.filter_by(task_id=task_id ).first()
-    
-    
-    task_progressions = Task_Progression.query.filter_by(task_id=task_id).all()
+    task_assignment = TaskAssignment.query.filter_by(task_id=task.task_id).first()
+    task_progressions = Task_Progression.query.filter_by(task_id=task.task_id).all()
     if task:  
+        if request.method == 'POST':
+            if 'opentask' in request.form:
+                
+                task.status = 'In Progress'  
+                db.session.commit()
+                flash('Task is open ', 'success')
+                return redirect(url_for('tasks'))
+            elif 'closetask' in request.form:
+                
+                task.status = 'task Closed By Admin'  
+                db.session.commit()
+                flash('Task is closed ', 'success')
+                return redirect(url_for('tasks'))    
         today = date.today()
         if task.start_date > today:
                 status = "Upcoming"
@@ -383,7 +407,6 @@ def taskdetail(task_id):
         flash("Task not found.", 'danger')
     return redirect(url_for('tasks'))
 
-
 @webapp.route("/tasks", methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -398,10 +421,30 @@ def tasks():
                     outerjoin(TaskAssignment, Task.task_id == TaskAssignment.task_id). \
                     outerjoin(users, TaskAssignment.employee_id == users.userid).all()
 
+        if request.method == 'POST':
+            task_id = request.form.get('task_id')   
+            task = Task.query.get(task_id)
+            if 'opentask' in request.form:
+                task.status = 'In Progress'
+                db.session.commit()
+                flash('Task is open ', 'success')
+                return redirect(url_for('tasks'))
+            elif 'closetask' in request.form:
+                task.status = 'task Closed By Admin'
+                db.session.commit()
+                flash('Task is closed ', 'success')
+                return redirect(url_for('tasks'))
+        task_dict = defaultdict(lambda: {'task': None, 'admin_name': '', 'employee_names': [], 'status': ''})
         for task, adminname, employeename in tasksq:
-            task_status = calculate_task_status(task)
-            tasks.append((task, adminname, employeename, task_status))
+            if task not in task_dict:
+                task_dict[task]['task'] = task
+                task_dict[task]['admin_name'] = adminname
+            if employeename:
+                task_dict[task]['employee_names'].append(employeename)
+            task_dict[task]['status'] = calculate_task_status(task)
         
+        tasks = [(v['task'], v['admin_name'], ', '.join(v['employee_names']), v['status']) for v in task_dict.values()]
+
         return render_template("tasks.html", tasks=tasks)
     
     elif user.usertype == "employee":
@@ -416,7 +459,7 @@ def calculate_task_status(task):
     elif task.status == 'COMPLETED':
         return "Closed"
     else:
-        return "Unknown"
+        return "Closed"
 
 @webapp.route("/tasks/addnewtask", methods=['GET', 'POST'])
 @login_required
@@ -429,6 +472,7 @@ def addnewtask():
         if request.method == 'POST':
             task_name = request.form['task_name']
             startdate = request.form['start_date']
+            description = request.form.get('description')
             try:
                 start_date = datetime.strptime(startdate, '%Y-%m-%d').date()
             except ValueError:
@@ -447,7 +491,8 @@ def addnewtask():
                 close_date = None
 
             selected_employee_ids = request.form.getlist('employees[]')
-            new_task = Task(task_name=task_name, start_date=start_date, close_date=close_date, admin_id=user.userid)
+            new_task = Task(task_name=task_name, start_date=start_date, close_date=close_date,
+                            admin_id=user.userid, description=description,token=secrets.token_urlsafe())
             db.session.add(new_task)
             db.session.commit()
 
@@ -464,6 +509,7 @@ def addnewtask():
     elif user.usertype == "employee":
         return redirect(url_for('employee'))
 
+from sqlalchemy.exc import IntegrityError
 
 @webapp.route("/tasks/delete/<int:task_id>", methods=['POST'])
 @login_required
@@ -473,25 +519,31 @@ def delete_task(task_id):
     if user.usertype == "Admin":
         task = Task.query.get(task_id)
         if task:
-            TaskAssignment.query.filter_by(task_id=task_id).delete()
-            db.session.delete(task)
-            db.session.commit()
-            flash('Task deleted successfully!', 'success')
+            
+                
+                db.session.query(Task_Progression).filter(Task_Progression.task_id == task_id).delete(synchronize_session='fetch')
+
+                db.session.query(TaskAssignment).filter(TaskAssignment.task_id == task_id).delete(synchronize_session='fetch')
+                db.session.query(Task).filter(Task.task_id == task_id).delete(synchronize_session='fetch')
+                db.session.commit()
+                flash('Task deleted successfully!', 'success')
+            
         else:
             flash('Task not found.', 'danger')
-        return redirect(url_for('tasks'))
     else:
         flash("You do not have permission to delete this task.", 'danger')
-        return redirect(url_for('tasks'))
+    
+    return redirect(url_for('tasks'))
 
-@webapp.route("/tasks/update/<int:task_id>", methods=['GET', 'POST'])
+
+@webapp.route("/tasks/update/<token>", methods=['GET', 'POST'])
 @login_required
 @admin_required
-def update_task(task_id):
+def update_task(token):
     user = current_user
     if user.usertype == "Admin":
         employees = users.query.filter_by(usertype='employee').all()
-        task = Task.query.get(task_id)
+        task = Task.query.filter_by(token=token).first()
 
         if task:
             if request.method == 'POST':
@@ -519,7 +571,7 @@ def update_task(task_id):
                 task.task_name = task_name
                 task.start_date = start_date
                 task.close_date = close_date
-                TaskAssignment.query.filter_by(task_id=task_id).delete()
+                TaskAssignment.query.filter_by(task_id=task.task_id).delete()
                 for employee_id in selected_employee_ids:
                     assignment = TaskAssignment(task_id=task.task_id, employee_id=employee_id)
                     db.session.add(assignment)
@@ -542,7 +594,6 @@ def update_task(task_id):
 
 
 
-
-
 if __name__ == '__main__':
+    
     webapp.run(debug=True)

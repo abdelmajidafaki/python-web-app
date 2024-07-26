@@ -34,6 +34,9 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="{{ url_for('employee') }}">Tasks</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
                 </li>
@@ -66,6 +69,10 @@
                         &nbsp;
                     {% endif %}
                 </p>
+            </div>
+            <div class="mt-3">
+                <h5 class="font-weight-bold">Description:</h5>
+                <p class="border p-3 bg-light rounded">{{ task.description }}</p>
             </div>
             <p><strong>Assigned by:</strong> {{ task.admin.fulname }}</p>
             <h3 class="card-title">Task Progressions</h3>
