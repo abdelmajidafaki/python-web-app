@@ -111,7 +111,7 @@
                 <input type="hidden" name="mark_task_done">
                 <button type="submit" class="btn btn-success">task Completed</button>
             </form>
-            <a href="{{ url_for('addprogression', task_id=task.task_id, employee_id=user.userid) }}" class="col-sm-2     mt-2 btn btn-primary ">add progression</a>
+            <a href="{{ url_for('addprogression', token=task.token,  etoken=user.Utoken) }}" class="col-sm-2     mt-2 btn btn-primary ">add progression</a>
             
             </div>
 

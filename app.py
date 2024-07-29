@@ -7,6 +7,13 @@ from sqlalchemy.orm import aliased
 from collections import defaultdict
 from functools import wraps
 import secrets
+from dotenv import load_dotenv
+import os
+from authlib.integrations.flask_client import OAuth
+load_dotenv()
+from flask_cors import CORS
+import hashlib
+
 
 webapp = Flask(__name__)
 bcrypt = Bcrypt(webapp)
@@ -15,10 +22,14 @@ webapp.config['SESSION_TYPE'] = 'filesystem'
 webapp.config['SESSION_COOKIE_HTTPONLY'] = True
 webapp.config['SESSION_COOKIE_SECURE'] = True
 webapp.config["SQLALCHEMY_DATABASE_URI"] = "mysql://root:@localhost/python_project"
+oauth = OAuth(webapp)
+TELEGRAM_BOT_TOKEN ='6812826346:AAEYnoM8hbvhrlY8pxPngUD38W5GK14hNM4'
+TELEGRAM_BOT_API_URL = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}'
 db = SQLAlchemy(webapp)
 
 login_manager = LoginManager()
 login_manager.init_app(webapp)
+CORS(webapp, resources={r"/*": {"origins": "*"}})
 
 #models
 class users(db.Model, UserMixin):
@@ -31,6 +42,8 @@ class users(db.Model, UserMixin):
     
     usertype = db.Column(db.String(20), default='not defined')
     Utoken = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
+    telegram_id = db.Column(db.String(50), unique=True, nullable=True)
+    telegram_token = db.Column(db.String(255), nullable=True)
     def get_id(self):
         return str(self.userid)
 
@@ -68,6 +81,22 @@ class Task_Progression(db.Model):
 
     def __repr__(self):
         return f"<TaskProgression prog_id={self.prog_id}, progname={self.progname}, task_id={self.task_id}, employee_id={self.employee_id}, statut={self.statut}>"
+
+# Initialize OAuth
+oauth = OAuth(webapp)
+telegram = oauth.register(
+    'telegram',
+    client_id='21484942',
+    client_secret='5fc20f9deee8f563f3d8a11ae4970cef',
+    authorize_url='https://oauth.telegram.org/authorize',
+    authorize_params=None,
+    access_token_url='https://oauth.telegram.org/token',
+    access_token_params=None,
+    refresh_token_url=None,
+    redirect_uri='/http://127.0.0.1:5000/login/telegram/authorized',
+    client_kwargs={'scope': 'user:email'},
+)
+
 
 
 #authntication
@@ -148,7 +177,50 @@ def loginpage():
     return render_template("loginpage.html")
 
 
+#---------------------------------------------------------------------------telegraaam---------------------------------------------------------
+@webapp.route('/login/telegram')
+def telegram_login():
+    redirect_uri = url_for('telegram_authorized', _external=True)
+    return oauth.telegram.authorize_redirect(redirect_uri)
 
+@webapp.route('/login/telegram/authorized')
+def telegram_authorized():
+    if 'error' in request.args:
+        flash('Telegram login failed', 'danger')
+        return redirect(url_for('loginpage'))
+
+    telegram_id = request.args.get('id')
+    first_name = request.args.get('first_name')
+    username = request.args.get('username')
+    auth_date = request.args.get('auth_date')
+    hash = request.args.get('hash')
+
+    # Verify the Telegram hash
+    if not verify_telegram_hash(request.args, hash):
+        flash('Invalid Telegram login', 'danger')
+        return redirect(url_for('loginpage'))
+
+    user = users.query.filter_by(telegram_id=telegram_id).first()
+    if not user:
+        user = users(
+            fullname=first_name,
+            email=username,
+            telegram_id=telegram_id
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user)
+    flash("Login successful via Telegram!", 'success')
+    return redirect(url_for('homepage'))
+
+def verify_telegram_hash(params, hash):
+    secret = os.getenv('TELEGRAM_BOT_TOKEN')  # Use your bot token or another secret key
+    hash_string = ''.join(f'{k}={v}\n' for k, v in sorted(params.items()) if k != 'hash')
+    hash_string += secret
+    return hash == hashlib.sha256(hash_string.encode('utf-8')).hexdigest()
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------    
 
 def employee_required(func):
     @wraps(func)
@@ -264,14 +336,15 @@ def taskdetails(token, etoken):
         flash("Task not found.", 'danger')
     return redirect(url_for('employee'))
 
-@webapp.route('/employee/taskdetails/addprogression/<int:task_id>/<int:employee_id>', methods=['GET', 'POST'])
+@webapp.route('/employee/taskdetails/addprogression/<token>/<etoken>', methods=['GET', 'POST'])
 @login_required
 @employee_required
-def addprogression(task_id, employee_id):
+def addprogression(token, etoken):
     user_id = current_user.userid
     user = users.query.get(user_id)
-
-    task_assignment = TaskAssignment.query.filter_by(task_id=task_id, employee_id =employee_id).first()
+    employee=users.query.filter_by(Utoken=etoken).first()
+    task = Task.query.filter_by(token=token).first()
+    task_assignment = TaskAssignment.query.filter_by(task_id=task.task_id, employee_id=employee.userid).first()
 
     if task_assignment:
         if request.method == 'POST':
@@ -289,8 +362,8 @@ def addprogression(task_id, employee_id):
                     start_at = date.today()
             new_progression = Task_Progression(progname=progname,
                                             start_at=start_at,
-                                            task_id=task_id,
-                                            employee_id =employee_id)
+                                            task_id=task.task_id,
+                                            employee_id =employee.userid)
             
             
             db.session.add(new_progression)
@@ -300,10 +373,10 @@ def addprogression(task_id, employee_id):
             return redirect(url_for('employee')) 
         else:
             
-            return render_template('taskprog.html', task_id=task_id, employee_id=user_id)
+            return render_template('taskprog.html', task_id=task.task_id, employee_id=user_id)
     else:
         flash('You are not authorized to add progression for this task.', 'danger')
-        return redirect(url_for('employee'))
+        return redirect(url_for('taskdetails'))
 
 
 #------------------------------------------------------------------admin side----------------------------------------------------------------------------------------
@@ -509,7 +582,7 @@ def addnewtask():
     elif user.usertype == "employee":
         return redirect(url_for('employee'))
 
-from sqlalchemy.exc import IntegrityError
+
 
 @webapp.route("/tasks/delete/<int:task_id>", methods=['POST'])
 @login_required
