@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+</head>
+<body>
+    <div class="container ">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+            <a class="navbar-brand" href="{{ url_for('homepage') }}">Logo</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="{{ url_for('homepage') }}">Home <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('tasks') }}">Tasks</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <p class="text-center">Welcome, {{ fullname }}</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} text-center" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                <div class="row">
+                    <div class="col-auto">
+                    <label for="user-type-filter">Filter by User Type:</label>
+                    <select id="user-type-filter" class="form-control">
+                        <option value="all">All</option>
+                        <option value="admin">Admin</option>
+                        <option value="employee">Employee</option>
+                        
+                        <option value="not defined">not defined</option>
+                    </select>
+                </div>
+                </div>
+                
+        <div class="d-flex justify-content-center">
+            <div>
+                <h2 class="text-center mb-4">All Users</h2>
+
+                <table id="user-table" class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th class="px-5">User ID</th>
+                            <th class="px-3">Full Name</th>
+                            <th class="px-3">Email</th>
+                            <th class="px-3">Status</th>
+                            <th class="px-3">User Type</th>
+                            <th class="px-3">Change Status</th>
+                            <th class="px-3">Change User Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in all_users %}
+                        <tr>
+                            <td class="px-3 text-center">{{ user.userid }}</td>
+                            <td class="px-3 text-center "><a href="{{url_for('userdetails', Utoken=user.Utoken)}}" class=" list-group-item-action">{{ user.fulname }}</a></td>   
+                            <td class="px-3 text-center">{{ user.email }}</td>
+                            <td class="px-3 text-center">{{ user.status }}</td>
+                            <td class="px-4 text-center">{{ user.usertype }}</td>
+                            <td class="">
+                                <form class="row px-2" method="POST" action="{{ url_for('update_status', userid=user.userid) }}">
+                                    <button type="submit" name="action" value="activate" class="col btn btn-success">Activate</button>
+                                    <button type="submit" name="action" value="deactivate" class=" col  btn btn-danger">Deactivate</button>
+                                </form>
+                            </td>
+                            <td >
+                                <form class="row px-2" method="POST" action="{{ url_for('update_status', userid=user.userid) }}">
+                                    <button type="submit" name="usertype" value="Admin" class="col btn btn-success  ">Admin</button>
+                                    <button type="submit" name="usertype" value="employee" class="col btn btn-danger">Employee</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+
+                
+            </div>
+        </div>
+    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get the filter dropdown and table rows
+        const filter = document.getElementById('user-type-filter');
+        const rows = document.querySelectorAll('#user-table tbody tr');
+
+        // Add event listener for filter change
+        filter.addEventListener('change', function() {
+            const selectedValue = filter.value.toLowerCase();
+            rows.forEach(row => {
+                const userType = row.querySelector('td:nth-child(5)').textContent.toLowerCase();
+                if (selectedValue === 'all' || userType === selectedValue) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
