@@ -44,8 +44,7 @@ class users(db.Model, UserMixin):
     
     usertype = db.Column(db.String(20), default='not defined')
     Utoken = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
-    telegram_id = db.Column(db.String(50), unique=True, nullable=True)
-    telegram_token = db.Column(db.String(255), nullable=True)
+    
     def get_id(self):
         return str(self.userid)
 
@@ -90,10 +89,25 @@ class PersonalTask(db.Model):
     TaskName = db.Column(db.String(255), nullable=False)
     DoAt = db.Column(db.Date)
     CompletedAt = db.Column(db.Date)
+    Description = db.Column(db.Text, nullable=True)
     State = db.Column(db.String(255), nullable=False, default='in progress')
     employee_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True)
     token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
+class PersonalTaskProgression(db.Model):
+    __tablename__ = 'personal_task_progression'
+
+    prog_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    Ptask_id = db.Column(db.Integer, db.ForeignKey('PersonalTasks.PTDID'), nullable=False)
+    progname=db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(255), nullable=False)
     
+    start_at = db.Column(db.Date, nullable=False)
+    completed_at = db.Column(db.Date, nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True)
+
+   
+
+
 '''
 # Initialize OAuth
 oauth = OAuth(webapp)
@@ -249,25 +263,23 @@ def employee_required(func):
 
 
 
-#------------------------------------------------------------employeside-----------------------------------------------------------------#
+#------------------------------------------------------------employeside--------------------------------------------------------------------------------------------
 @webapp.route("/employee", methods=['GET', 'POST'])
 @login_required
 @employee_required
-
 def employee():
-
     user_id = current_user.userid
     user = users.query.get(user_id)
 
     if user:
         assigned_tasks = db.session.query(Task) \
-                            .join(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
-                            .filter(TaskAssignment.employee_id == user_id) \
-                            .all()
+            .join(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
+            .filter(TaskAssignment.employee_id == user_id) \
+            .all()
 
         today = date.today()
 
-        tasks = []  
+        tasks = []
 
         for task in assigned_tasks:
             if task.start_date > today:
@@ -287,14 +299,34 @@ def employee():
                 daystoclose = None
 
             admin_name = task.admin.fulname 
-            tasks.append((task, admin_name, status,daystoclose))
+            tasks.append((task, admin_name, status, daystoclose))
 
-            
+        def to_datetime(d):
+            if isinstance(d, datetime):
+                return d
+            elif isinstance(d, date):
+                return datetime.combine(d, datetime.min.time())
+            else:
+                return datetime.max
+        def sort_key(task_info):
+            task, _, status, daystoclose = task_info
+            start_date = to_datetime(task.start_date)
+            close_date = to_datetime(task.close_date)
 
-        return render_template("employee/employeepage.html", user=user, tasks=tasks )
+            if status == 'Open':
+                return (0, close_date)
+            elif status == 'Upcoming':
+                return (1, start_date)
+            else:
+                return (2, datetime.max)
+        tasks.sort(key=sort_key)
+
+        return render_template("employee/employeepage.html", user=user, tasks=tasks)
     else:
         flash("User not found. Please log in again.", 'danger')
         return redirect(url_for('loginpage'))
+
+
 
 @webapp.route("/employee/taskdetails/<token>/<etoken>", methods=['GET', 'POST'])
 @login_required
@@ -393,7 +425,7 @@ def addprogression(token, etoken):
         flash('You are not authorized to add progression for this task.', 'danger')
         return redirect(url_for('taskdetails'))
     
-
+#-------------------------------------------------------------------------------personal task-----------------------------------------------------------------------------------
 @webapp.route('/employee/addpersonaltask', methods=['GET', 'POST'])
 @login_required
 @employee_required
@@ -405,26 +437,26 @@ def addpertask():
         do_at = request.form.get('doAt')
         completed_at = request.form.get('completedAt')
         state = request.form.get('state')
+        description= request.form.get('description')           
         employee_id=user.userid
-        
-        # Create a new PersonalTask instance
+        if do_at :
+            do_at=do_at
+        else: do_at= date.today()
+     
         new_task = PersonalTask(
             TaskName=task_name,
-            DoAt=do_at if do_at else None,
+            DoAt=do_at ,
             CompletedAt=completed_at if completed_at else None,
             State=state,employee_id=employee_id,
-    
+            Description=description if description else None,
             token=secrets.token_urlsafe()
         )
-        
-        # Add the new task to the database
+
         db.session.add(new_task)
         db.session.commit()
-        
-        # Redirect to a page to confirm the addition or show all tasks
+      
         return redirect(url_for('personaltasks'))
     
-    # Render the form template if GET request
     return render_template('employee/addpertask.html')
 
 
@@ -438,14 +470,27 @@ def delete_pertask(token):
     return redirect(url_for('personaltasks'))
 
 
-@webapp.route('/employee/complete_pertask/<string:token>')
+@webapp.route('/employee/toggle_pertask/<string:token>/<string:action>')
 @login_required
 @employee_required
-def complete_pertask(token):
+def toggle_pertask(token, action):
+    
     task = PersonalTask.query.filter_by(token=token).first_or_404()
-    task.State = 'completed'
-    task.CompletedAt=date.today()
+    
+    
+    if action == 'complete':
+        task.State = 'completed'
+        task.CompletedAt = date.today()
+        flash('Task marked as completed.', 'success')
+    elif action == 'rollback':
+        task.State = 'in progress'
+        task.CompletedAt = None
+        flash('Task mark rolled back', 'warning')  
+
+    
     db.session.commit()
+
+    
     return redirect(url_for('personaltasks'))
 
 
@@ -457,6 +502,7 @@ def edit_pertask(token):
     
     if request.method == 'POST':
         task.TaskName = request.form.get('taskName')
+        task.Description= request.form.get('description') 
         task.DoAt = request.form.get('doAt')
         task.CompletedAt = request.form.get('completedAt')
         db.session.commit()
@@ -475,6 +521,91 @@ def personaltasks():
     tasks = PersonalTask.query.filter(PersonalTask.employee_id == user.userid).all()
     return render_template('employee/personalstask.html', tasks=tasks)
 
+@webapp.route('/employee/personaltasks/personaltaskdetail/<Ptoken>', methods=['GET', 'POST'])
+@login_required
+@employee_required
+def personaltaskdetail(Ptoken):
+    
+    task = PersonalTask.query.filter_by(token=Ptoken).first()
+    task_progressions = PersonalTaskProgression.query.filter_by(Ptask_id=task.PTDID).all()
+
+    if request.method == 'POST':
+        if 'mark_task_done' in request.form:
+            
+            task.State = 'completed'
+            task.CompletedAt= date.today()
+            db.session.commit()
+            flash('Task marked as completed.', 'success')
+            return redirect(url_for('personaltaskdetail', Ptoken=Ptoken))
+        if 'Task_not_done' in request.form:
+            
+            task.State = 'in progress'
+            task.CompletedAt= None
+            db.session.commit()
+            flash('Task mark is rolled back.', 'success')
+            return redirect(url_for('personaltaskdetail', Ptoken=Ptoken))
+
+        if 'progression_id' in request.form:
+            
+            progression_id = request.form.get('progression_id')
+            progression = PersonalTaskProgression.query.get(progression_id)
+
+            if progression:
+                progression.completed_at = date.today()
+                progression.status = 'Completed'
+                db.session.commit()
+                flash('Progression marked as completed.', 'success')
+                return redirect(url_for('personaltaskdetail', Ptoken=Ptoken))
+            else:
+                flash('Progression not found.', 'danger')
+    
+    return render_template('employee/personal_taskdetail.html', task=task, task_progressions=task_progressions)
+
+@webapp.route('/employee/personaltasks/personaltaskdetail/addpersonalprogression/<Ptoken>', methods=['GET', 'POST'])
+@login_required
+@employee_required
+def addpersonalprogression(Ptoken):
+
+    task = PersonalTask.query.filter_by(token=Ptoken).first()
+
+    if not task:
+        flash('Personal Task not found.', 'danger')
+        return redirect(url_for('personaltasks'))
+
+    if request.method == 'POST':
+        
+        progname = request.form.get('progname')
+        start_at = request.form.get('start_at')
+        
+        if not progname:
+            flash('Progress name is required.', 'danger')
+            return redirect(url_for('addpersonalprogression', Ptoken=Ptoken))
+        
+        if not start_at or start_at == '0000-00-00':
+            start_at = date.today() 
+
+        if isinstance(start_at, str):
+            try:
+                start_at = date.fromisoformat(start_at) 
+            except ValueError:
+                start_at = date.today()
+        
+       
+        new_progression = PersonalTaskProgression(
+            Ptask_id=task.PTDID,
+            progname=progname,
+            status='in progress',
+            start_at=start_at,
+            employee_id=current_user.userid
+        )
+        
+        db.session.add(new_progression)
+        db.session.commit()
+        flash('Personal Task Progression added successfully.', 'success')
+        return redirect(url_for('personaltaskdetail', Ptoken=Ptoken))
+    
+    return render_template('employee/add_personal_progression.html', task=task)
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------admin side----------------------------------------------------------------------------------------
 def admin_required(func):
     @wraps(func)
@@ -575,49 +706,67 @@ def taskdetail(token):
     else:
         flash("Task not found.", 'danger')
     return redirect(url_for('admintasks'))
-
 @webapp.route("/tasks", methods=['GET', 'POST'])
 @login_required
 @admin_required
 def tasks():
     user = current_user
+
     if user.usertype == "Admin":
-        tasks = []
+        if request.method == 'POST':
+            task_id = request.form.get('task_id')
+            task = Task.query.get(task_id)
+            if task:
+                if 'opentask' in request.form:
+                    task.status = 'In Progress'
+                    db.session.commit()
+                    flash('Task is open', 'success')
+                elif 'closetask' in request.form:
+                    task.status = 'task Closed By Admin'
+                    db.session.commit()
+                    flash('Task is closed', 'success')
+            return redirect(url_for('tasks'))
 
         admin_alias = aliased(users)
-        tasksq = db.session.query(Task, admin_alias.fulname.label('admin_name'), users.fulname.label('employee_name')). \
-                    join(admin_alias, Task.admin_id == admin_alias.userid). \
-                    outerjoin(TaskAssignment, Task.task_id == TaskAssignment.task_id). \
-                    outerjoin(users, TaskAssignment.employee_id == users.userid).all()
+        tasksq = db.session.query(Task, admin_alias.fulname.label('admin_name'), users.fulname.label('employee_name')) \
+            .join(admin_alias, Task.admin_id == admin_alias.userid) \
+            .outerjoin(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
+            .outerjoin(users, TaskAssignment.employee_id == users.userid) \
+            .all()
 
-        if request.method == 'POST':
-            task_id = request.form.get('task_id')   
-            task = Task.query.get(task_id)
-            if 'opentask' in request.form:
-                task.status = 'In Progress'
-                db.session.commit()
-                flash('Task is open ', 'success')
-                return redirect(url_for('tasks'))
-            elif 'closetask' in request.form:
-                task.status = 'task Closed By Admin'
-                db.session.commit()
-                flash('Task is closed ', 'success')
-                return redirect(url_for('tasks'))
         task_dict = defaultdict(lambda: {'task': None, 'admin_name': '', 'employee_names': [], 'status': ''})
-        for task, adminname, employeename in tasksq:
+        for task, admin_name, employee_name in tasksq:
             if task not in task_dict:
                 task_dict[task]['task'] = task
-                task_dict[task]['admin_name'] = adminname
-            if employeename:
-                task_dict[task]['employee_names'].append(employeename)
+                task_dict[task]['admin_name'] = admin_name
+            if employee_name:
+                task_dict[task]['employee_names'].append(employee_name)
             task_dict[task]['status'] = calculate_task_status(task)
-        
+
         tasks = [(v['task'], v['admin_name'], ', '.join(v['employee_names']), v['status']) for v in task_dict.values()]
+
+        def to_datetime(d):
+            return datetime.combine(d, datetime.min.time()) if isinstance(d, date) else d or datetime.max
+
+        def sort_key(task_info):
+            task, _, _, status = task_info
+            start_date = to_datetime(task.start_date)
+            close_date = to_datetime(task.close_date)
+            if status == 'Open':
+                return (0, close_date)
+            elif status == 'Upcoming':
+                return (1, start_date)
+            else:
+                return (2, datetime.max)
+
+        tasks.sort(key=sort_key)
 
         return render_template("admin/tasks.html", tasks=tasks)
     
     elif user.usertype == "employee":
         return redirect(url_for('employee'))
+    
+
 
 def calculate_task_status(task):
     today = date.today()
@@ -756,6 +905,10 @@ def update_task(token):
 
     flash("You are not logged in. Please log in to access this page.", 'danger')
     return redirect(url_for('loginpage'))
+
+#---------------------------------------------------------admin----------------employe details -------------------------------------------------------------------------------------------------------
+
+
 @webapp.route("/userdetails/<Utoken>", methods=['GET'])
 @login_required
 @admin_required
@@ -819,6 +972,24 @@ def userdetails(Utoken):
             tasks.append((task, admin_name, status, daystoclose))
 
     return render_template("admin/userdetails.html", user=user, personal_tasks=personal_tasks, tasks=tasks)
+
+
+@webapp.route('/userdetails/employepertask/<string:token>')
+@login_required
+@admin_required
+def employepertask(token):
+    task = PersonalTask.query.filter_by(token=token).first_or_404()
+    
+    task_progressions = PersonalTaskProgression.query.filter_by(Ptask_id=task.PTDID).all()
+    
+    return render_template(
+        "admin/employeeperstask.html",
+        task=task,
+        task_progressions=task_progressions
+    )
+
+
+
 
 if __name__ == '__main__':
     

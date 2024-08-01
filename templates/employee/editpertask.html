@@ -28,6 +28,15 @@
                 </ul>
             </div>
         </nav>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} text-center" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <h2>Edit Personal Task</h2>
         <form method="POST">
             <div class="form-group">
@@ -38,11 +47,12 @@
                 <label for="doAt">Do At</label>
                 <input type="date" class="form-control" id="doAt" name="doAt" value="{{ task.DoAt }}">
             </div>
-
-            <button type="submit" class="btn btn-primary">Update Task</button>
+            <label for="description">Description:</label>
+            <textarea class="form-control" id="description" name="description"></textarea>
+            <button type="submit" class="btn btn-primary mt-1">Update Task</button>
         </form>
     </div>
-    <!-- Include Bootstrap JS (adjust the path if needed) -->
+    
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

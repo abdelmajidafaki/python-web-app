@@ -28,6 +28,15 @@
                 </ul>
             </div>
         </nav>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} text-center" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <h1 class="mb-4">Add Personal Task</h1>
         <form action="/employee/addpersonaltask" method="POST">
             <div class="form-group">
@@ -36,8 +45,10 @@
             </div>
             <div class="form-group">
                 <label for="doAt">Do At </label>
-                <input type="date" class="form-control" id="doAt" name="doAt" required>
+                <input type="date" class="form-control" id="doAt" name="doAt" >
             </div>
+            <label for="description">Description:</label>
+            <textarea class="form-control" id="description" name="description"></textarea>
             
 
             <button type="submit" class="btn btn-primary">Add Task</button>

@@ -79,6 +79,15 @@
           </ul>
         </div>
       </nav>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} text-center" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
       <h2 class="text-center mb-4">User Details</h2>
 
       
@@ -120,7 +129,7 @@
         <div class="row">
           {% if tasks %}
             {% for task, admin_name, status, daystoclose in tasks %}
-              <div class="col-md-4 mb-4">
+              <div class="col-md-4 mb-2">
                 <a href="{{ url_for('taskdetail', token=task.token, etoken=user.Utoken) }}" class="card-link">
                   <div class="card task-card">
                     <div class="card-body">
@@ -173,7 +182,7 @@
             {% if personal_tasks %}
               {% for task in personal_tasks %}
                 <tr>
-                  <td>{{ task.TaskName }}</td>
+                  <td><a href="{{url_for('employepertask',token=task.token)}}"class="list-group-item-action">{{ task.TaskName }}</a></td>
                   <td>{{ task.DoAt }}</td>
                   <td>{{ task.State }}</td>
                   <td>{{ task.CompletedAt }}</td>
