@@ -1,0 +1,162 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Teams</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+        <style>
+            .dropdown-icon {
+                cursor: pointer;
+                font-size: 18px;
+                transition: transform 0.3s;
+                margin-left: 10px;
+            }
+            .dropdown-icon.collapsed {
+                transform: rotate(0deg);
+            }
+            .dropdown-icon:not(.collapsed) {
+                transform: rotate(180deg);
+            }
+            .team-details {
+                padding: 10px 0;
+            }
+            .scrollable-list {
+                max-height: 100px; 
+                overflow-y: auto;
+                border: 1px solid #ddd;
+                border-radius: 0.25rem;
+                background-color: #f8f9fa;
+            }
+            .search-bar {
+                margin-bottom: 20px;
+            }
+            .team-item {
+        display: block; /* Ensure it's block by default */
+    }
+    .team-item.hidden {
+        display: none !important;
+    }
+        </style>
+    </head>
+    <body>
+        <div class="container ">
+            <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+                <a class="navbar-brand" href="{{ url_for('admin_routes.usersdashboard') }}">Logo</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_routes.usersdashboard') }}">Users</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_routes.tasks') }}">Tasks</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_routes.projects') }}">Projects</a>
+                        </li>
+                        <li class="nav-item active">
+                            <a class="nav-link" href="{{ url_for('admin_routes.teams') }}">Teams</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth_routes.logout') }}">Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <h2>Teams</h2>
+            
+            <!-- Search Bar -->
+            <input type="text" id="teamSearch" class="form-control search-bar" placeholder="Search for teams...">
+            <a class="btn btn-primary mb-2" href="{{ url_for('admin_routes.add_team') }}">Add New Team</a>
+
+            <div class="list-group " id="teamList">
+                {% for team, data in team_data.items() %}
+                    <div class="mb-2 list-group-item d-flex justify-content-between align-items-center team-item" data-team-name="{{ team.team_name | lower }}">
+                        <h6>
+                            {{ team.team_name }}
+                            <span class="dropdown-icon" data-toggle="collapse" data-target="#team_details_{{ team.team_id }}" aria-expanded="false" aria-controls="team_details_{{ team.team_id }}">&#9660;</span>
+                        </h6>
+                        <span>
+                            <a class="btn btn-warning btn-sm" href="{{ url_for('admin_routes.update_team', TETOKEN=team.TETOKEN) }}">Update</a>
+                            <form action="{{ url_for('admin_routes.delete_team', TETOKEN=team.TETOKEN) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </span>
+                    </div>
+                    <div id="team_details_{{ team.team_id }}" class="collapse team-details">
+                        <div class="card card-body">
+                            <h5>Members</h5>
+                            <div class="scrollable-list">
+                                <ul class="list-group">
+                                    {% for member in data.members %}
+                                        <li class="list-group-item">{{ member.fulname }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <h5>Supervisor</h5>
+                            <div class="scrollable-list">
+                                <ul class="list-group">
+                                    {% if data.supervisor %}
+                                        <li class="list-group-item">{{ data.supervisor.fulname }}</li>
+                                    {% else %}
+                                        <li class="list-group-item">No supervisor assigned</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                            <h5 class="mt-3">Projects</h5>  
+                            <div class="scrollable-list">
+                                <ul class="list-group">
+                                    {% for project in data.projects %}
+                                        <li class="list-group-item">{{ project.project_name }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>  
+                
+
+            <br>
+            
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <script>
+        $(document).ready(function(){
+        $("#teamSearch").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            console.log("Search value:", value); // Log the current search value
+            var anyVisible = false;
+
+            $("#teamList .team-item").each(function() {
+                var teamName = $(this).data("team-name");
+                console.log("Team name:", teamName); // Log each team name
+                if (teamName.indexOf(value) > -1) {
+                    $(this).removeClass("hidden").show();
+                    anyVisible = true;
+                } else {
+                    $(this).addClass("hidden").hide();
+                }
+            });
+
+            if (!anyVisible) {
+                console.log("No results found"); // Log when no results are found
+                $("#noResults").show();
+            } else {
+                console.log("Results found"); // Log when results are found
+                $("#noResults").hide();
+            }
+        });
+    });
+
+
+        </script>
+    </body>
+    </html>

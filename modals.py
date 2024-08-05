@@ -28,6 +28,7 @@ class Task(db.Model):
     status = db.Column(db.String(20), default='In Progress')
     admin = db.relationship("users", foreign_keys=[admin_id], backref=db.backref("admin_tasks", lazy=True))
     token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id'), nullable=True)   
 class TaskAssignment(db.Model):
     __tablename__ = 'task_assignments'
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.task_id'), primary_key=True)
@@ -74,3 +75,35 @@ class PersonalTaskProgression(db.Model):
     completed_at = db.Column(db.Date, nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True)
 
+class Teams(db.Model):
+    __tablename__ = 'teams'
+
+    
+    team_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    team_name = db.Column(db.String(255), nullable=False)
+    supervisor_id = db.Column(db.Integer, db.ForeignKey('users.userid'))
+    TETOKEN=db.Column(db.String(255),unique=True, nullable=False,)
+    members = db.relationship('users', secondary='teams_member', backref=db.backref('teams', lazy=True))
+
+class TeamsMember(db.Model):
+    __tablename__ = 'teams_member'
+
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), primary_key=True)
+    userid = db.Column(db.Integer, db.ForeignKey('users.userid'), primary_key=True)
+
+class Project(db.Model):
+    __tablename__ = 'projects'
+
+    project_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_name = db.Column(db.String(255), nullable=False)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    statut=db.Column(db.String(255),nullable=False,default='in progress')
+    description = db.Column(db.Text, nullable=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
+    teams = db.relationship('Teams', secondary='project_team', backref=db.backref('projects', lazy=True))
+class ProjectTeam(db.Model):
+    __tablename__ = 'project_team'
+
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id'), primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), primary_key=True)
