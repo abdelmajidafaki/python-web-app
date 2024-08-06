@@ -22,31 +22,7 @@
 </head>
 <body>
     <div class="container">
-        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
-            <a class="navbar-brand" href="{{ url_for('admin_routes.usersdashboard') }}">Logo</a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ml-auto">
-                    <li class="nav-item active">
-                        <a class="nav-link" href="{{ url_for('admin_routes.usersdashboard') }}">Users <span class="sr-only">(current)</span></a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_routes.tasks') }}">Tasks</a>
-                    </li>
-                    <li class="nav-item ">
-                        <a class="nav-link" href="{{ url_for('admin_routes.projects') }}">projects</a>
-                    </li>
-                    <li class="nav-item ">
-                        <a class="nav-link" href="{{ url_for('admin_routes.teams') }}">teams</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth_routes.logout') }}">Logout</a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
+        {% include 'admin/components/navbar.html' %}
         <p class="text-center">Welcome, {{ fullname }}</p>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -73,9 +49,9 @@
                             <th>Change User Type</th>
                         </tr>
                         <tr id="filter-row">
-                            <th><input type="text" class="form-control" placeholder="Filter by ID"></th>
-                            <th><input type="text" class="form-control" placeholder="Filter by Name"></th>
-                            <th><input type="text" class="form-control" placeholder="Filter by Email"></th>
+                            <th><input  type="search" class="form-control" placeholder="Filter by ID"></th>
+                            <th><input  type="search" class="form-control" placeholder="Filter by Name"></th>
+                            <th><input  type="search" class="form-control" placeholder="Filter by Email"></th>
                             <th>
                                 <select class="form-control">
                                     <option value="">All Status</option>

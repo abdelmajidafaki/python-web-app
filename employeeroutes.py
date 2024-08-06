@@ -86,7 +86,7 @@ def taskdetails(token, etoken):
     employee = users.query.filter_by(Utoken=etoken).first()
     task_assignment = TaskAssignment.query.filter_by(task_id=task.task_id, employee_id=employee.userid).first()
     
-    task_progressions = Task_Progression.query.filter_by(task_id=task.task_id, employee_id=employee.userid).all()
+    task_progressions = Task_Progression.query.filter_by(task_id=task.task_id).all()
     
     if task:
         if request.method == 'POST':

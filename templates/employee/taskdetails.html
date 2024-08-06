@@ -93,6 +93,7 @@
                 {% for progression in task_progressions %}
                     <li class="list-group-item">
                         <p><strong>Progress Name:</strong> {{ progression.progname }}</p>
+                        <p><strong>Made By:</strong> {{ progression.employee.fulname }}</p>
                         <div class="row">
                         <p class="col-sm-6"><strong>Start At:</strong> {{ progression.start_at }}</p>
                         <p><strong>Completed at:</strong>
@@ -106,7 +107,7 @@
                         
                         <div class="row">
                             <p class="col-sm-6 "><strong>Status:</strong> {{ progression.statut }}</p>
-                            {% if progression.statut != 'Completed' %}
+                            {% if progression.statut != 'Completed' and progression.employee.userid==user.userid  %}
                             <form class="col-2" method="POST">
                                 <input type="hidden" name="progression_id" value="{{ progression.prog_id }}">
                                 <button type="submit" class="btn btn-success">Done</button>

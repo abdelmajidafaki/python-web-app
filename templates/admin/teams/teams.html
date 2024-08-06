@@ -32,46 +32,35 @@
                 margin-bottom: 20px;
             }
             .team-item {
-        display: block; /* Ensure it's block by default */
+        display: block; 
     }
     .team-item.hidden {
         display: none !important;
+    }
+    .card-link {
+        color: inherit;
+        text-decoration: none;
+    }
+    
+    .card-link:hover {
+        text-decoration: none;
+    }
+    
+    .card-link:focus, .card-link:hover {
+        color: inherit;
+        text-decoration: none;
     }
         </style>
     </head>
     <body>
         <div class="container ">
-            <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
-                <a class="navbar-brand" href="{{ url_for('admin_routes.usersdashboard') }}">Logo</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav ml-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin_routes.usersdashboard') }}">Users</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin_routes.tasks') }}">Tasks</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin_routes.projects') }}">Projects</a>
-                        </li>
-                        <li class="nav-item active">
-                            <a class="nav-link" href="{{ url_for('admin_routes.teams') }}">Teams</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('auth_routes.logout') }}">Logout</a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+            {% include 'admin/components/navbar.html' %}
 
             <h2>Teams</h2>
             
-            <!-- Search Bar -->
-            <input type="text" id="teamSearch" class="form-control search-bar" placeholder="Search for teams...">
-            <a class="btn btn-primary mb-2" href="{{ url_for('admin_routes.add_team') }}">Add New Team</a>
+            
+            <input  type="search" id="teamSearch" class="form-control search-bar" placeholder="Search for teams...">
+            <a class="btn btn-primary mb-2" href="{{ url_for('admin_routes.add_team') }}">Create new Team</a>
 
             <div class="list-group " id="teamList">
                 {% for team, data in team_data.items() %}
@@ -93,7 +82,8 @@
                             <div class="scrollable-list">
                                 <ul class="list-group">
                                     {% for member in data.members %}
-                                        <li class="list-group-item">{{ member.fulname }}</li>
+                                        
+                                        <li class="list-group-item"><a href="{{ url_for('admin_routes.userdetails', Utoken=member.Utoken) }}" class="list-group-item-action">{{ member.fulname }} </a></li>
                                     {% endfor %}
                                 </ul>
                             </div>
@@ -101,7 +91,12 @@
                             <div class="scrollable-list">
                                 <ul class="list-group">
                                     {% if data.supervisor %}
-                                        <li class="list-group-item">{{ data.supervisor.fulname }}</li>
+                                        <li class="list-group-item">
+                                            <a href="{{ url_for('admin_routes.userdetails', Utoken= data.supervisor.Utoken) }}" class="list-group-item-action"> 
+                                                {{ data.supervisor.fulname }}
+                                                </a>
+                                            </li>
+                                        
                                     {% else %}
                                         <li class="list-group-item">No supervisor assigned</li>
                                     {% endif %}
@@ -111,7 +106,7 @@
                             <div class="scrollable-list">
                                 <ul class="list-group">
                                     {% for project in data.projects %}
-                                        <li class="list-group-item">{{ project.project_name }}</li>
+                                        <li class="list-group-item"><a href="{{ url_for('admin_routes.project_details', token=project.token) }}" class="card-link">{{ project.project_name }}</a></li>
                                     {% endfor %}
                                 </ul>
                             </div>

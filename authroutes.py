@@ -1,14 +1,10 @@
-# routes/authroutes.py
-
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
-from extensions import db, bcrypt,login_manager
+from extensions import db, bcrypt
 from modals import users
 
 auth_routes = Blueprint('auth_routes', __name__)
-@login_manager.user_loader
-def load_user(user_id):
-    return users.query.get(int(user_id))
+
 @auth_routes.route("/", methods=['GET', 'POST'])
 def indexpage():
     return redirect(url_for('auth_routes.loginpage'))
