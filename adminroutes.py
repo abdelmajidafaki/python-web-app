@@ -136,9 +136,11 @@ def tasks():
 
     tasks = sort_tasks(tasks)
 
-    return render_template("admin/tasks/tasks.html", tasks=tasks, projects=project_names ,user_type = 'admin')
+    return render_template("admin/tasks/tasks.html", tasks=tasks, projects=project_names )
 
 @admin_routes.route('/update_task_statut', methods=['POST'])
+@login_required
+@admin_required
 def update_task_statut():
     task_id = request.form.get('task_id')
     task = Task.query.get(task_id)

@@ -42,38 +42,44 @@ def process_date(date_str):
     except ValueError:
         return date.today()
 
-@employee_routes.route("/Assignedtasks", methods=['GET'])
+@employee_routes.route("/Assignedtasks", methods=['GET', 'POST'])
 @login_required
 @employee_required
 def Assignedtasks():
     user_id = current_user.userid
-    assigned_tasks = db.session.query(Task) \
-        .join(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
-        .filter(TaskAssignment.employee_id == user_id) \
-        .all()
+    user = users.query.get(user_id)
 
-    tasks = [(task, task.admin.fulname, ', '.join([assignment.employee.fulname for assignment in task.assignments]), *get_task_status(task), task.project.project_name if task.project else None) for task in assigned_tasks]
+    if user:
+        assigned_tasks = db.session.query(Task) \
+            .join(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
+            .filter(TaskAssignment.employee_id == user_id) \
+            .all()
 
-    def to_datetime(d):
-        if isinstance(d, datetime):
-            return d
-        elif isinstance(d, date):
-            return datetime.combine(d, datetime.min.time())
-        return datetime.max
+        tasks = [(task, task.admin.fulname, *get_task_status(task)) for task in assigned_tasks]
 
-    def sort_key(task_info):
-        task, _, _, status, daystoclose, _ = task_info
-        start_date = to_datetime(task.start_date)
-        close_date = to_datetime(task.close_date)
-        if status == 'Open':
-            return (0, close_date)
-        elif status == 'Upcoming':
-            return (1, start_date)
-        return (2, datetime.max)
+        def to_datetime(d):
+            if isinstance(d, datetime):
+                return d
+            elif isinstance(d, date):
+                return datetime.combine(d, datetime.min.time())
+            return datetime.max
+        
+        def sort_key(task_info):
+            task, _, status, daystoclose = task_info
+            start_date = to_datetime(task.start_date)
+            close_date = to_datetime(task.close_date)
+            if status == 'Open':
+                return (0, close_date)
+            elif status == 'Upcoming':
+                return (1, start_date)
+            return (2, datetime.max)
+        
+        tasks.sort(key=sort_key)
 
-    tasks.sort(key=sort_key)
-
-    return render_template("admin/tasks/tasks.html", tasks=tasks, user_type='employee')
+        return render_template("employee/employeepage.html", user=user, tasks=tasks)
+    else:
+        flash("User not found. Please log in again.", 'danger')
+        return redirect(url_for('auth_routes.loginpage'))
 
 
 
