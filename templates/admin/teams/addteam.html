@@ -22,8 +22,7 @@
 </head>
 <body>
     <div class="container ">
-        {% include 'admin/components/navbar.html' %}
-        <h2>Create New Team</h2>
+        {% include 'components/navbar.html' %}        <h2>Create New Team</h2>
         <form method="POST" action="{{ url_for('admin_routes.add_team') }}">
             <div class="form-group">
                 <label for="team_name">Team Name:</label>

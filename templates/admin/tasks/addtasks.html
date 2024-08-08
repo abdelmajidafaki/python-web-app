@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Task</title>
+    <title>{{ 'Create New Task for Project' if selected_project_token else 'Create New Task' }}</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
     <style>
         .employee-list label {
@@ -15,8 +15,9 @@
 </head>
 <body>
     <div class="container">
-        {% include 'admin/components/navbar.html' %}
-        <h2 class="mb-4">Create New Task</h2>
+        {% include 'components/navbar.html' %}        <h2 class="mb-4">
+            {{ 'Create New Task for Project' if selected_project_token else 'Create New Task' }}
+        </h2>
         <form action="{{ url_for('admin_routes.addnewtask') }}" method="POST">
             <div class="form-group">
                 <label for="task_name">Task Name:</label>
@@ -37,23 +38,24 @@
                 <label for="description">Description:</label>
                 <textarea class="form-control" id="description" name="description"></textarea>
             </div>
-            
+
+            {% if not selected_project_token %}
             <div class="form-group">
                 <label for="project">Select Project:</label>
-                <select class="form-control" id="project" name="project_id" onchange="updateEmployeeList()">
-                    <option value="">-- Select a Project --</option>
-                    {% for project in projects %}
-                        <option value="{{ project.project_id }}">{{ project.project_name }}</option>
-                    {% endfor %}
-                </select>
+    <select class="form-control" id="project" name="project_token" onchange="updateEmployeeList()">
+        <option value="">-- Select a Project --</option>
+        {% for project in projects %}
+            <option value="{{ project.token }}" {% if project.token == selected_project_token %}selected{% endif %}>{{ project.project_name }}</option>
+        {% endfor %}
+    </select>
+                
             </div>
+            {% endif %}
 
             <div id="employees-container">
                 <div class="form-group">
                     <label for="employees">Assign to Employees:</label>
-                    <div id="employee-list">
-                       
-                    </div>
+                    <div id="employee-list"></div>
                 </div>
             </div>
 
@@ -68,6 +70,10 @@
             {% endfor %}
             {% endif %}
             {% endwith %}
+
+            {% if selected_project_token %}
+            <input type="hidden" name="project_token" value="{{ selected_project_token }}">
+            {% endif %}
         </form>
     </div>
 
@@ -76,22 +82,36 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <script>
-        const employees = {{ employees|tojson }};
-        const projectTeams = {{ project_teams|tojson }};
+        const employees = {{ employees|tojson|safe }};
+        const projectTeams = {{ project_teams|default('{}')|tojson|safe }};
 
+        const selectedProjectToken = "{{ selected_project_token or '' }}";
+        
+        console.log('Employees:', employees);
+        console.log('Project Teams:', projectTeams);
+        console.log('Selected Project Token:', selectedProjectToken);
+        
         function updateEmployeeList() {
-            const projectId = document.getElementById('project').value;
+            const projectDropdown = document.getElementById('project');
+            const projectToken = projectDropdown ? projectDropdown.value : selectedProjectToken;
+            
             const employeeListContainer = document.getElementById('employee-list');
+            if (!employeeListContainer) {
+                console.error('Employee list container element not found.');
+                return;
+            }
+        
             employeeListContainer.innerHTML = '';
-
+        
             let teamMembers = [];
-
-            if (projectId) {
-                teamMembers = projectTeams[projectId] || [];
+            if (projectToken && projectTeams.hasOwnProperty(projectToken)) {
+                teamMembers = projectTeams[projectToken];
+                console.log('Team Members for Selected Project:', teamMembers);
             } else {
                 teamMembers = employees || [];
+                console.log('All Employees:', teamMembers);
             }
-
+    
             teamMembers.forEach(member => {
                 const div = document.createElement('div');
                 div.classList.add('form-check');
@@ -103,10 +123,24 @@
                 `;
                 employeeListContainer.appendChild(div);
             });
-        }
-
         
-        document.addEventListener('DOMContentLoaded', updateEmployeeList);
+            console.log('Employee List HTML:', employeeListContainer.innerHTML);
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const projectDropdown = document.getElementById('project');
+            if (projectDropdown) {
+                updateEmployeeList(); 
+                projectDropdown.addEventListener('change', updateEmployeeList); 
+            } else {
+                updateEmployeeList(); 
+            }
+        });
     </script>
-</body>
+    
+    
+
+    
+    
+</body> 
 </html>

@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from extensions import db
 from functools import wraps
-from modals import users, Task, TaskAssignment, Task_Progression, PersonalTask, PersonalTaskProgression
+from modals import users, Task, TaskAssignment, Task_Progression, PersonalTask, PersonalTaskProgression,Project,ProjectTeam
 import secrets
 from datetime import datetime, date
 
@@ -19,15 +19,20 @@ def employee_required(func):
 
 def get_task_status(task):
     today = date.today()
+    status = ""
     if task.start_date > today:
-        return "Upcoming", None
+        status = "Upcoming"
     elif task.start_date <= today and (task.close_date is None or task.close_date >= today) and task.status == 'In Progress':
-        if task.close_date:
-            return "Open", (task.close_date - today).days
-        return "Open", None
+        status = "Open"
+    elif task.status == 'COMPLETED':
+        status = "Closed"
     else:
-        return "Closed", None
+        status = "Closed"
 
+    daystoclose = (task.close_date - today).days if task.close_date else None
+    
+    
+    return status, daystoclose
 
 def process_date(date_str):
     if not date_str or date_str == '0000-00-00':
@@ -37,44 +42,41 @@ def process_date(date_str):
     except ValueError:
         return date.today()
 
-@employee_routes.route("/Assignedtasks", methods=['GET', 'POST'])
+@employee_routes.route("/Assignedtasks", methods=['GET'])
 @login_required
 @employee_required
 def Assignedtasks():
     user_id = current_user.userid
-    user = users.query.get(user_id)
+    assigned_tasks = db.session.query(Task) \
+        .join(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
+        .filter(TaskAssignment.employee_id == user_id) \
+        .all()
 
-    if user:
-        assigned_tasks = db.session.query(Task) \
-            .join(TaskAssignment, Task.task_id == TaskAssignment.task_id) \
-            .filter(TaskAssignment.employee_id == user_id) \
-            .all()
+    tasks = [(task, task.admin.fulname, ', '.join([assignment.employee.fulname for assignment in task.assignments]), *get_task_status(task), task.project.project_name if task.project else None) for task in assigned_tasks]
 
-        tasks = [(task, task.admin.fulname, *get_task_status(task)) for task in assigned_tasks]
+    def to_datetime(d):
+        if isinstance(d, datetime):
+            return d
+        elif isinstance(d, date):
+            return datetime.combine(d, datetime.min.time())
+        return datetime.max
 
-        def to_datetime(d):
-            if isinstance(d, datetime):
-                return d
-            elif isinstance(d, date):
-                return datetime.combine(d, datetime.min.time())
-            return datetime.max
-        
-        def sort_key(task_info):
-            task, _, status, daystoclose = task_info
-            start_date = to_datetime(task.start_date)
-            close_date = to_datetime(task.close_date)
-            if status == 'Open':
-                return (0, close_date)
-            elif status == 'Upcoming':
-                return (1, start_date)
-            return (2, datetime.max)
-        
-        tasks.sort(key=sort_key)
+    def sort_key(task_info):
+        task, _, _, status, daystoclose, _ = task_info
+        start_date = to_datetime(task.start_date)
+        close_date = to_datetime(task.close_date)
+        if status == 'Open':
+            return (0, close_date)
+        elif status == 'Upcoming':
+            return (1, start_date)
+        return (2, datetime.max)
 
-        return render_template("employee/employeepage.html", user=user, tasks=tasks)
-    else:
-        flash("User not found. Please log in again.", 'danger')
-        return redirect(url_for('auth_routes.loginpage'))
+    tasks.sort(key=sort_key)
+
+    return render_template("admin/tasks/tasks.html", tasks=tasks, user_type='employee')
+
+
+
 
 @employee_routes.route("/Assignedtasks/taskdetails/<token>/<etoken>", methods=['GET', 'POST'])
 @login_required

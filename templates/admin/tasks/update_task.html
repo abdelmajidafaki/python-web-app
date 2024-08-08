@@ -8,8 +8,7 @@
 </head>
 <body>
     <div class="container">
-        {% include 'admin/components/navbar.html' %}
-        <h2>Update Task</h2>
+        {% include 'components/navbar.html' %}        <h2>Update Task</h2>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -37,7 +36,9 @@
                 <select class="form-control" id="project" name="project_id" onchange="updateEmployeeList()">
                     <option value="">-- Select a Project --</option>
                     {% for project in projects %}
-                        <option value="{{ project.project_id }}">{{ project.project_name }}</option>
+                        <option value="{{ project.project_id }}" {% if project.project_id == task.project_id %}selected{% endif %}>
+                            {{ project.project_name }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -65,6 +66,7 @@
     <script>
         const employees = {{ employees|tojson }};
         const projectTeams = {{ project_teams|tojson }};
+        const selectedEmployeeIds = {{ selected_employee_ids|tojson }};
 
         function updateEmployeeList() {
             const projectId = document.getElementById('project').value;
@@ -80,10 +82,11 @@
             }
 
             teamMembers.forEach(member => {
+                const isChecked = selectedEmployeeIds.includes(member.userid);
                 const div = document.createElement('div');
                 div.classList.add('form-check');
                 div.innerHTML = `
-                    <input class="form-check-input" type="checkbox" name="employees[]" id="employee${member.userid}" value="${member.userid}">
+                    <input class="form-check-input" type="checkbox" name="employees[]" id="employee${member.userid}" value="${member.userid}" ${isChecked ? 'checked' : ''}>
                     <label class="form-check-label" for="employee${member.userid}">
                         ${member.fullname} (ID: ${member.userid})
                     </label>

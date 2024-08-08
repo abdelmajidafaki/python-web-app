@@ -8,7 +8,16 @@
 </head>
 <body>
     <div class="container ">
-        {% include 'admin/components/navbar.html' %}
+        
+        {% include 'components/navbar.html' %}        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} text-center mt-3" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <h2>Create New Project</h2>
         <form method="POST" action="{{ url_for('admin_routes.create_project') }}">
             <div class="form-group">

@@ -71,8 +71,14 @@
 </head>
 <body>
     <div class="container flex">
-        {% include 'admin/components/navbar.html' %}
+        {% include 'components/navbar.html' %}
+        <h2>Tasks</h2>
         <div class="row align-items-center ml-2 px-4">
+            {% if user_type == 'admin' %}
+                <div class="col-auto mt-4">
+                    <a class="btn btn-primary" href="{{ url_for('admin_routes.addnewtask') }}">Create New task</a>
+                </div>
+            {% endif %}
             <form id="filterForm" class="col-auto">
                 <div class="form-row align-items-center">
                     <div class="col-auto">
@@ -86,91 +92,92 @@
                     </div>
                 </div>
             </form>
-            <form id="filterForm" class="col-auto">
-                <div class="col-auto">
-                    <label class="mb-1" for="projectFilter">Filter by project:</label>
-                    <select class="form-control" id="projectFilter">
-                        <option value="">All</option>
-                        {% for project in projects %}
-                            <option value="{{ project }}">{{ project }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </form>
-            
+            {% if user_type == 'admin' %}
+                <form id="filterForm" class="col-auto">
+                    <div class="col-auto">
+                        <label class="mb-1" for="projectFilter">Filter by project:</label>
+                        <select class="form-control" id="projectFilter">
+                            <option value="">All</option>
+                            {% for project in projects %}
+                                <option value="{{ project }}">{{ project }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            {% endif %}
             <div class="search-bar mt-4">
-                <input   id="searchBar" class="form-control" type="search" placeholder="Search tasks by name...">
-            </div>
-            <div class="col-auto mt-4">
-                <a class="btn btn-primary" href="{{ url_for('admin_routes.addnewtask') }}">Create New task</a>
+                <input id="searchBar" class="form-control" type="search" placeholder="Search tasks by name...">
             </div>
         </div>
         
         <div class="mt-2 flex row">
-            {% for task, admin_name, employee_names, task_status, daystoclose ,project_name in tasks %}
+            {% for task, admin_name, employee_names, task_status, daystoclose, project_name in tasks %}
+
             <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-4 mt-2" data-status="{{ task_status }}" data-project="{{ project_name|default('') }}">
-                    <a href="{{ url_for('admin_routes.taskdetail', token=task.token) }}" class="card-link">
-                        <div class="card border task-card">
-                            <div class="card-body">
-                                <div class="row">
-                                    <h5 class="col card-title">{{ task.task_name }}</h5>
-                                    <div class="col status-label {% if task_status == 'Upcoming' %}status-upcoming{% elif task_status == 'Open' %}status-open{% elif task_status == 'Closed' %}status-closed{% else %}status-closed{% endif %}">
-                                        {{ task_status }}
-                                    </div>
+                <a href="{{ url_for('admin_routes.taskdetail', token=task.token) }}" class="card-link">
+                    <div class="card border task-card">
+                        <div class="card-body">
+                            <div class="row">
+                                <h3 class="col card-title">{{ task.task_name }}</h3>
+                                <div class="col status-label {% if task_status == 'Upcoming' %}status-upcoming{% elif task_status == 'Open' %}status-open{% elif task_status == 'Closed' %}status-closed{% else %}status-closed{% endif %}">
+                                    {{ task_status }}
                                 </div>
-                                {% if project_name %}
-                                    <p class="card-text">Project: {{ project_name }}</p>
+                            </div>
+                            {% if project_name %}
+                                <p class="card-text"><strong>Project:</strong> {{ project_name }}</p>
+                            {% endif %}
+                            <p class="card-text"><strong>Start Date:</strong> {{ task.start_date }}</p>
+                            {% if task.close_date %}
+                                <p class="card-text"><strong>Close Date:</strong> {{ task.close_date.strftime('%Y-%m-%d') }}</p>
+                            {% endif %}
+                            <p class="card-text"><strong>Created By:</strong> {{ admin_name }}</p>
+                            {% if employee_names %}
+                                <p class="card-text"><strong>Assigned To:</strong> {{ employee_names }}</p>
+                            {% endif %}
+                            {% if task.close_date %}
+                                {% if daystoclose is not none and daystoclose < 3 and daystoclose > 0 %}
+                                    <p class="card-text text-center text-white bg-danger">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-triangle mb-1" viewBox="0 0 16 16">
+                                            <path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/>
+                                            <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/>
+                                        </svg>
+                                        <strong>Days until close: {{ daystoclose }}</strong>
+                                    </p>
                                 {% endif %}
-                                <p class="card-text">Start Date: {{ task.start_date }}</p>
-                                {% if task.close_date %}
-                                    <p class="card-text">Close Date: {{ task.close_date.strftime('%Y-%m-%d') }}</p>
-                                {% endif %}
-                                <p class="card-text">Created By: {{ admin_name }}</p>
-                                {% if employee_names %}
-                                    <p class="card-text">Assigned To: {{ employee_names }}</p>
-                                {% endif %}
-                                {% if task.close_date %}
-                                    {% if daystoclose is not none and daystoclose < 3 and daystoclose >0 %}
-                                        <p class="card-text text-center text-white bg-danger">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-triangle mb-1" viewBox="0 0 16 16">
-                                                <path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/>
-                                                <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/>
-                                            </svg>
-                                            <strong>Days until close: {{ daystoclose }}</strong>
-                                        </p>
-                                    {% endif %}
-                                {% endif %}
-                                <div class="d-flex flex-row    ">
-                                    <div  class="mr-2">
+                            {% endif %}
+                            <div class="d-flex flex-row">
+                                {% if user_type == 'admin' %}
+                                    <div class="mr-2">
                                         <form action="{{ url_for('admin_routes.delete_task', task_id=task.task_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
                                             <button type="submit" class="btn btn-danger btn-sm">Delete Task</button>
                                         </form>
                                     </div>
-                                    <div  class="mr-2">
+                                    <div class="mr-2">
                                         <form action="{{ url_for('admin_routes.update_task', token=task.token) }}" method="GET">
                                             <button type="submit" class="btn btn-primary btn-sm">Update Task</button>
                                         </form>
                                     </div>
-                                    <div  class="mr-2">
-                                        <form action="{{ url_for('admin_routes.tasks') }}" method="POST">
+                                    <div class="mr-2">
+                                        <form action="{{ url_for('admin_routes.update_task_statut') }}" method="POST">
                                             <input type="hidden" name="task_id" value="{{ task.task_id }}">
-                                            {% if task.status == 'COMPLETED' or task.status == 'task Closed By Admin' %}
+                                            {% if task.status == 'COMPLETED' or task.status == 'Closed by Admin' %}
                                                 <input type="hidden" name="opentask">
                                                 <button type="submit" class="btn btn-sm btn-success">Open the task</button>
-                                            {% endif %}
-                                            {% if task.status == 'In Progress' %}
+                                            {% elif task.status == 'In Progress' and task_status == 'Upcoming' %}
+                                                <input type="hidden" name="opentask">
+                                                <button type="submit" class="btn btn-sm btn-success">Open The task</button>
+                                            {% elif task.status == 'In Progress' %}
                                                 <input type="hidden" name="closetask">
                                                 <button type="submit" class="btn btn-sm btn-warning">Close the task</button>
                                             {% endif %}
                                         </form>
                                     </div>
-                                </div>
-                                
-                                
+                                {% endif %}
                             </div>
                         </div>
-                    </a>
-                </div>
+                    </div>
+                </a>
+            </div>
             {% endfor %}
         </div>
 
@@ -191,53 +198,24 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const filterSelect = document.getElementById('statusFilter');
-            const searchInput = document.getElementById('searchBar');
-            const tasks = document.querySelectorAll('.row > .col-md-6.mt-2');
-    
-            function applyFilterAndSearch() {
-                const selectedStatus = filterSelect.value.toLowerCase();
-                const searchText = searchInput.value.toLowerCase();
-                
-                tasks.forEach(task => {
-                    const taskStatus = task.getAttribute('data-status').toLowerCase();
-                    const taskName = task.querySelector('.card-title').textContent.toLowerCase();
-    
-                    const statusMatches = selectedStatus === '' || taskStatus === selectedStatus;
-                    const nameMatches = taskName.includes(searchText);
-    
-                    if (statusMatches && nameMatches) {
-                        task.style.display = 'block';
-                    } else {
-                        task.style.display = 'none';
-                    }
-                });
-            }
-            applyFilterAndSearch();
-            filterSelect.addEventListener('change', applyFilterAndSearch);
-            searchInput.addEventListener('input', applyFilterAndSearch);
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const filterSelect = document.getElementById('statusFilter');
             const projectSelect = document.getElementById('projectFilter');
             const searchInput = document.getElementById('searchBar');
             const tasks = document.querySelectorAll('.row > .col-md-6.mt-2');
-    
+
             function applyFilterAndSearch() {
                 const selectedStatus = filterSelect.value.toLowerCase();
-                const selectedProject = projectSelect.value.toLowerCase();
+                const selectedProject = projectSelect ? projectSelect.value.toLowerCase() : '';
                 const searchText = searchInput.value.toLowerCase();
-    
+
                 tasks.forEach(task => {
                     const taskStatus = task.getAttribute('data-status').toLowerCase();
                     const taskName = task.querySelector('.card-title').textContent.toLowerCase();
                     const taskProject = task.getAttribute('data-project').toLowerCase();
-    
+
                     const statusMatches = selectedStatus === '' || taskStatus === selectedStatus;
                     const projectMatches = selectedProject === '' || taskProject === selectedProject;
                     const nameMatches = taskName.includes(searchText);
-    
+
                     if (statusMatches && projectMatches && nameMatches) {
                         task.style.display = 'block';
                     } else {
@@ -247,11 +225,11 @@
             }
             applyFilterAndSearch();
             filterSelect.addEventListener('change', applyFilterAndSearch);
-            projectSelect.addEventListener('change', applyFilterAndSearch);
+            if (projectSelect) {
+                projectSelect.addEventListener('change', applyFilterAndSearch);
+            }
             searchInput.addEventListener('input', applyFilterAndSearch);
         });
     </script>
-    
-    
 </body>
 </html>

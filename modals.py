@@ -119,10 +119,11 @@ class Project(db.Model):
     statut = db.Column(db.String(255), nullable=False, default='in progress')
     description = db.Column(db.Text, nullable=True)
     token = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe())
+    created_by = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=False)
 
     teams = db.relationship('Teams', secondary='project_team', backref=db.backref('projects', lazy=True))
     tasks = db.relationship('Task', back_populates='project')
-
+    
 
 class ProjectTeam(db.Model):
     __tablename__ = 'project_team'

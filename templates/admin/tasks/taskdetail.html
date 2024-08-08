@@ -29,8 +29,7 @@
 <body>
 
 <div class="container ">
-    {% include 'admin/components/navbar.html' %}
-    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% include 'components/navbar.html' %}    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
             <div class="alert alert-{{ category }} text-center" role="alert">
@@ -42,7 +41,7 @@
     <div class="card mt-4">
         <div class="card-body px-5">
             <div class="row">
-                <h1 class="card-title">Task Details</h1>
+                <h2 class="card-title"> {{ task.task_name }}</h2>
                 <div class="col-4 mt-2">
                     <div class="status-label {% if status == 'Upcoming' %}
                                         status-upcoming{% elif status == 'Open' and task.status == 'In Progress' %}
@@ -52,11 +51,9 @@
                     </div>
                 </div>
             </div>
-            <p><strong>Task Name:</strong> {{ task.task_name }}</p>
+            
             {% if project %}
-            <p><strong>Attached Project:</strong> {{ project.project_name }}</p>
-        {% else %}
-            <p><strong>Attached Project:</strong> None</p>
+            <p><strong>Attached Project:</strong> {{ project.project_name }}</p>            
         {% endif %}
             <p><strong>Task statut: </strong>{{task.status }}</p>
             <div class="row">
@@ -103,19 +100,22 @@
                     <form action="{{ url_for('admin_routes.update_task', token=task.token) }}" class="col-sm-2 mt-1  "method="GET">
                         <button type="submit" class="btn btn-primary btn-sm">Update Task</button>
                     </form>
-                
-                {% if task.status=='COMPLETED' or task.status=='task Closed By Admin'  %}
-                    <form class="col-sm-2  mt-1 " method="POST" >
+                    <form action="{{ url_for('admin_routes.update_task_statut') }}" method="POST">
+                        <input type="hidden" name="task_id" value="{{ task.task_id }}">     
+                    {% if task.status == 'COMPLETED' or task.status == 'Closed by Admin' %}
+                    <input type="hidden" name="opentask">
+                    <button type="submit" class="btn btn-sm btn-success">Open the task</button>
+                    {% endif %}
+                    {% if task.status == 'In Progress' and  status=='Upcoming' %}
                         <input type="hidden" name="opentask">
-                        <button type="submit" class="btn btn-sm btn-success">open the task</button>
-                    </form>            
-                {% endif %}
-                {% if task.status=='In Progress' %}
-                    <form class="col-sm-2   mt-1" method="POST" >
+                        <button type="submit" class="btn btn-sm btn-success">Open The task</button>
+                    
+                    {% elif task.status == 'In Progress' %}
                         <input type="hidden" name="closetask">
-                        <button type="submit" class="btn btn-sm btn-warning">close the task</button>
-                    </form>            
-                {% endif %}
+                        <button type="submit" class="btn btn-sm btn-warning">Close the task</button>
+                    {% endif %}
+                    </form>
+                  
                 
             </div>  
         </div>

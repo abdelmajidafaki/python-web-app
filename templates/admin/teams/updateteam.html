@@ -22,8 +22,7 @@
 </head>
 <body>
     <div class="container ">
-        {% include 'admin/components/navbar.html' %}
-        <h2>Update Team</h2>
+        {% include 'components/navbar.html' %}        <h2>Update Team</h2>
         <form method="POST" action="{{ url_for('admin_routes.update_team', TETOKEN=team.TETOKEN) }}">
             <div class="form-group">
                 <label for="team_name">Team Name:</label>
